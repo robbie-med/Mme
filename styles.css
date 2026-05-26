@@ -263,22 +263,72 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
 }
 .warning ul { margin: 4px 0 0; padding-left: 18px; }
 
-.manual-row {
+.add-form {
   display: grid;
-  grid-template-columns: 2fr 1.2fr 1fr 0.8fr auto;
-  gap: 8px;
+  grid-template-columns: 1.8fr 1.2fr 1.2fr 1fr auto;
+  gap: 10px;
   align-items: end;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
 }
-.manual-row label { margin-bottom: 4px; }
-.manual-row select, .manual-row input {
+.add-form .field { display: flex; flex-direction: column; }
+.add-form label {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.add-form select, .add-form input {
   width: 100%;
-  padding: 7px 10px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
   background: #fff;
 }
+.add-form .add-actions button { width: 100%; }
+.unit-hint { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+#add-help { margin: 6px 0 0; font-size: 12px; color: var(--muted); min-height: 14px; }
+
+.paste-details { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+.paste-details summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 500;
+  font-size: 14px;
+  list-style: none;
+}
+.paste-details summary::before { content: '▸ '; display: inline-block; transition: transform 0.15s; }
+.paste-details[open] summary::before { content: '▾ '; }
+.paste-body { margin-top: 12px; }
+
+.source-tag {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.source-tag.parsed { background: #e0f2fe; color: #075985; }
+.source-tag.manual { background: #ecfeff; color: #0e7490; }
+
+.remove-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #b91c1c;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.remove-btn:hover { background: #fef2f2; border-color: #fecaca; }
 
 .refs details summary {
   cursor: pointer;
