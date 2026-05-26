@@ -11,6 +11,15 @@ total to an equivalent dose of a different opioid.
 
 ## Features
 
+- **Simple / Complex / Settings views.** A streamlined "Simple" pane for quick
+  manual calculations, a "Complex" pane with MAR paste + time-window controls
+  + detailed breakdown, and a Settings pane to pick the default view and toggle
+  cross-session persistence.
+- **Installable PWA.** Add to home screen / dock and use the calculator
+  offline. The first time you load the site, a service worker caches the app
+  shell; after that, the app works without a network connection. Settings
+  shows current online/offline status and a one-click install button on
+  browsers that support it.
 - **Unified medication ledger.** Every medication — whether typed in or parsed
   from a pasted MAR — lands in the same list, totals into the same MME, and is
   individually removable.

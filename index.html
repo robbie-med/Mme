@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#1e3a8a">
 <title>MME Calculator</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MME">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body class="view-simple">
@@ -201,6 +208,15 @@
       </label>
       <p class="hint">When on, your medication list is saved to this device's local storage and restored when you reopen the app. Nothing is sent anywhere.</p>
     </div>
+    <div class="setting" id="install-row" hidden>
+      <label>Install</label>
+      <p class="hint">Install this app to your home screen / dock for one-tap offline access.</p>
+      <button id="install-btn" class="primary" type="button">Install MME Calculator</button>
+    </div>
+    <div class="setting">
+      <label>Offline status</label>
+      <p class="hint" id="offline-status">Checking…</p>
+    </div>
     <div class="setting">
       <button id="setting-reset" class="ghost" type="button">Reset settings &amp; clear saved data</button>
     </div>
@@ -209,5 +225,14 @@
 </main>
 
 <script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch(err => {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
+</script>
 </body>
 </html>
