@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MME Calculator</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>MME Calculator</h1>
+  <p class="subtitle">Morphine Milligram Equivalents &middot; built for simple and complex regimens</p>
+</header>
+
+<main>
+  <section class="card">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="paste" role="tab">Paste MAR</button>
+      <button class="tab" data-tab="manual" role="tab">Manual entry</button>
+    </div>
+
+    <div id="paste-panel" class="panel active">
+      <label for="input-text">Paste the medication administration record (MAR) below.</label>
+      <textarea id="input-text" rows="14" spellcheck="false"
+        placeholder="Paste the medication block from your EHR — drug name, order line, then date / time / dose triplets..."></textarea>
+      <div class="row controls">
+        <label class="ctl">Window
+          <select id="time-window">
+            <option value="24" selected>Last 24 hours</option>
+            <option value="48">Last 48 hours</option>
+            <option value="72">Last 72 hours</option>
+            <option value="all">All shown (normalize to 24h)</option>
+          </select>
+        </label>
+        <label class="ctl">Anchor
+          <select id="window-anchor">
+            <option value="latest" selected>Latest dose in data</option>
+            <option value="now">Current time</option>
+          </select>
+        </label>
+        <button id="parse-btn" class="primary">Calculate</button>
+        <button id="example-btn" class="ghost" type="button">Load example</button>
+        <button id="clear-btn" class="ghost" type="button">Clear</button>
+      </div>
+    </div>
+
+    <div id="manual-panel" class="panel">
+      <p class="hint">Enter total daily dose for each opioid. Routes use the GlobalRPh equianalgesic table.</p>
+      <div id="manual-rows"></div>
+      <button id="add-row-btn" class="ghost" type="button">+ Add medication</button>
+    </div>
+  </section>
+
+  <section class="card" id="results-card">
+    <h2>Breakdown</h2>
+    <div id="warnings"></div>
+    <div id="meds-table-wrap">
+      <p class="empty-state">No medications parsed yet. Paste an MAR or use Manual entry.</p>
+    </div>
+  </section>
+
+  <section class="card totals">
+    <div class="big-number">
+      <div class="value"><span id="total-mme">--</span><span class="unit"> mg/day MME</span></div>
+      <div class="sub" id="totals-detail">Total oral morphine equivalents per 24 hours</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Convert to a target opioid</h2>
+    <div class="row controls">
+      <label class="ctl">Target
+        <select id="target-drug">
+          <option value="">Select target opioid</option>
+          <optgroup label="Oral">
+            <option value="morphine|PO">Morphine PO</option>
+            <option value="hydromorphone|PO">Hydromorphone PO</option>
+            <option value="oxycodone|PO">Oxycodone PO</option>
+            <option value="oxymorphone|PO">Oxymorphone PO</option>
+            <option value="hydrocodone|PO">Hydrocodone PO</option>
+            <option value="codeine|PO">Codeine PO</option>
+            <option value="tramadol|PO">Tramadol PO</option>
+            <option value="tapentadol|PO">Tapentadol PO</option>
+            <option value="methadone|PO">Methadone PO (chronic)</option>
+          </optgroup>
+          <optgroup label="Parenteral / transdermal">
+            <option value="morphine|IV">Morphine IV/IM/SC</option>
+            <option value="hydromorphone|IV">Hydromorphone IV/IM/SC</option>
+            <option value="fentanyl|IV">Fentanyl IV (mcg/day)</option>
+            <option value="fentanyl|TD">Fentanyl transdermal (mcg/hr)</option>
+          </optgroup>
+        </select>
+      </label>
+      <label class="ctl">Cross-tolerance reduction
+        <select id="reduction">
+          <option value="0">None (0%)</option>
+          <option value="25" selected>25%</option>
+          <option value="33">33%</option>
+          <option value="50">50%</option>
+        </select>
+      </label>
+    </div>
+    <div id="conversion-result" class="conversion-result"></div>
+  </section>
+
+  <section class="card refs">
+    <details>
+      <summary>Conversion factors &amp; assumptions</summary>
+      <div class="ref-body">
+        <p><strong>MME factors (per mg unless noted).</strong> Derived from the GlobalRPh equianalgesic table (oral morphine = 30 mg chronic baseline) and CDC tiered methadone factors.</p>
+        <table class="ref-table">
+          <thead><tr><th>Drug</th><th>Route</th><th>MME / mg</th></tr></thead>
+          <tbody>
+            <tr><td>Morphine</td><td>PO</td><td>1</td></tr>
+            <tr><td>Morphine</td><td>IV / IM / SC</td><td>3</td></tr>
+            <tr><td>Hydromorphone</td><td>PO</td><td>4</td></tr>
+            <tr><td>Hydromorphone</td><td>IV / IM / SC</td><td>20</td></tr>
+            <tr><td>Oxycodone</td><td>PO</td><td>1.5</td></tr>
+            <tr><td>Oxymorphone</td><td>PO</td><td>3</td></tr>
+            <tr><td>Oxymorphone</td><td>IV / IM / SC</td><td>30</td></tr>
+            <tr><td>Hydrocodone</td><td>PO</td><td>1</td></tr>
+            <tr><td>Codeine</td><td>PO</td><td>0.15</td></tr>
+            <tr><td>Codeine</td><td>IV / IM / SC</td><td>0.25</td></tr>
+            <tr><td>Tramadol</td><td>PO</td><td>0.1</td></tr>
+            <tr><td>Tapentadol</td><td>PO</td><td>0.4</td></tr>
+            <tr><td>Meperidine</td><td>PO</td><td>0.1</td></tr>
+            <tr><td>Meperidine</td><td>IV / IM / SC</td><td>0.4</td></tr>
+            <tr><td>Fentanyl</td><td>IV / IM (per mcg)</td><td>0.3</td></tr>
+            <tr><td>Fentanyl</td><td>Transdermal (per mcg/hr)</td><td>2.4 / day</td></tr>
+            <tr><td>Methadone PO</td><td>1&ndash;20 mg/day</td><td>4</td></tr>
+            <tr><td>Methadone PO</td><td>21&ndash;40 mg/day</td><td>8</td></tr>
+            <tr><td>Methadone PO</td><td>41&ndash;60 mg/day</td><td>10</td></tr>
+            <tr><td>Methadone PO</td><td>&gt;60 mg/day</td><td>12</td></tr>
+          </tbody>
+        </table>
+        <p class="caveat"><strong>Caveats.</strong> Published equianalgesic ratios are estimates. Methadone conversions in opioid-tolerant patients should involve a pain or palliative specialist. Account for residual fentanyl release for 12&ndash;36 hours after patch removal and for any long-acting formulations. Use extra caution in elderly patients and in hepatic, renal, or pulmonary disease. This tool is not a substitute for clinical judgement.</p>
+      </div>
+    </details>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
