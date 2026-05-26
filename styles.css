@@ -298,6 +298,58 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
   color: var(--muted);
 }
 
+.conv-orders {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed #bfdbfe;
+}
+.conv-orders h4 {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.conv-order-line {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  align-items: baseline;
+}
+.conv-label {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.conv-value { color: var(--text); }
+.conv-value .conv-or {
+  font-style: italic;
+  color: var(--muted);
+}
+.conv-notes {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 251, 235, 0.6);
+  border-left: 3px solid #fbbf24;
+  border-radius: 4px;
+}
+.conv-note {
+  font-size: 12px;
+  color: #4b5563;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+.conv-note:last-child { margin-bottom: 0; }
+
+@media (max-width: 640px) {
+  .conv-order-line { grid-template-columns: 1fr; gap: 2px; }
+}
+
 .warning {
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);

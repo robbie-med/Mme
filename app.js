@@ -572,10 +572,127 @@ function renderConversion(totalMME) {
   const reductionText = reduction > 0
     ? `Applied ${(reduction * 100).toFixed(0)}% cross-tolerance reduction (${formatNum(totalMME)} → ${formatNum(adjMME)} MME).`
     : 'No cross-tolerance reduction applied.';
+  const orders = buildConversionOrders(drugKey, route, dose, adjMME);
   el.classList.add('show');
   el.innerHTML = `<div>Equivalent dose of <strong>${escapeHtml(drugLabel)}</strong>:</div>
     <div class="target-dose">${formatNum(dose)} ${escapeHtml(unit)}</div>
-    <div class="breakdown">${escapeHtml(calcDesc)}<br>${escapeHtml(reductionText)}</div>`;
+    <div class="breakdown">${escapeHtml(calcDesc)}<br>${escapeHtml(reductionText)}</div>
+    ${renderConversionOrders(orders)}`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Suggested-order generation
+ * ------------------------------------------------------------------ */
+
+function roundToStep(n, step) { return Math.round(n / step) * step; }
+
+// Per-drug clinically reasonable rounding for a single dose.
+function roundSingleDose(n, drugKey) {
+  if (n < 0) return 0;
+  if (drugKey === 'fentanyl') return Math.max(1, Math.round(n));
+  if (drugKey === 'hydromorphone') return Math.max(0.5, roundToStep(n, 0.5));
+  if (drugKey === 'oxymorphone')   return Math.max(2.5, roundToStep(n, 2.5));
+  if (drugKey === 'oxycodone')     return Math.max(2.5, roundToStep(n, 2.5));
+  if (drugKey === 'methadone')     return Math.max(2.5, roundToStep(n, 2.5));
+  if (drugKey === 'tramadol')      return Math.max(25, roundToStep(n, 25));
+  if (drugKey === 'tapentadol')    return Math.max(25, roundToStep(n, 25));
+  if (drugKey === 'codeine')       return Math.max(15, roundToStep(n, 15));
+  // morphine, hydrocodone default
+  return Math.max(5, roundToStep(n, 5));
+}
+
+function unitFor(drugKey) { return drugKey === 'fentanyl' ? 'mcg' : 'mg'; }
+
+const HAS_ER = new Set(['morphine', 'oxycodone', 'hydromorphone', 'oxymorphone', 'tramadol', 'tapentadol']);
+
+function breakthroughLine(drugKey, route, dailyDose) {
+  const u = unitFor(drugKey);
+  const minD = roundSingleDose(dailyDose * 0.10, drugKey);
+  const maxD = roundSingleDose(dailyDose * 0.20, drugKey);
+  const label = DRUGS[drugKey].label;
+  const form = route === 'PO' ? 'IR PO' : route;
+  if (minD === maxD || minD === 0) return `~${maxD} ${u} ${label} ${form} q4h PRN (~15% of daily)`;
+  return `${minD}–${maxD} ${u} ${label} ${form} q4h PRN (10–20% of daily)`;
+}
+
+function buildConversionOrders(drugKey, route, dose, adjMME) {
+  const label = DRUGS[drugKey].label;
+  const u = unitFor(drugKey);
+
+  if (drugKey === 'methadone' && route === 'PO') {
+    const per = roundSingleDose(dose / 3, drugKey);
+    return {
+      scheduled: [`${per} mg methadone PO TID (start low; titrate)`],
+      breakthrough: 'Use a separate short-acting opioid for breakthrough — do not PRN methadone.',
+      notes: [
+        'Steady state takes 5–7 days; do not titrate faster than every ~5 days.',
+        'Obtain baseline ECG; reassess QTc with dose changes or QT-prolonging drugs.',
+        'Highly variable kinetics — pain or palliative specialist input strongly advised.',
+      ],
+    };
+  }
+
+  if (drugKey === 'fentanyl' && route === 'TD') {
+    const patches = [12, 25, 37.5, 50, 62.5, 75, 87.5, 100];
+    const conservative = patches.reduce((best, p) => p <= dose ? p : best, patches[0]);
+    const btMg = roundSingleDose(adjMME * 0.15, 'morphine');
+    return {
+      scheduled: [`${conservative} mcg/hr patch q72h (rounded down for safety; available: 12, 25, 37.5, 50, 62.5, 75, 87.5, 100)`],
+      breakthrough: `~${btMg} mg morphine IR PO q4h PRN (or any equivalent short-acting opioid)`,
+      notes: [
+        'Opioid-tolerant patients only (≥60 MME for ≥1 week).',
+        'Onset 12–24 h after first patch — overlap with prior opioid initially.',
+        'Heat (fever, hot tub, heating pad) increases absorption and overdose risk.',
+      ],
+    };
+  }
+
+  if (drugKey === 'fentanyl' && route === 'IV') {
+    const rate = Math.max(5, roundToStep(dose / 24, 5));
+    return {
+      scheduled: [`Continuous infusion ~${rate} mcg/hr (titrate to effect)`],
+      breakthrough: '25–50 mcg IV bolus q15min PRN, then adjust basal rate',
+      notes: ['Use monitored setting; rapid bolus risks chest-wall rigidity at higher doses.'],
+    };
+  }
+
+  if (route === 'PO') {
+    const erDose = roundSingleDose(dose / 2, drugKey);
+    const irDose = roundSingleDose(dose / 6, drugKey);
+    const scheduled = [];
+    if (HAS_ER.has(drugKey)) scheduled.push(`${erDose} ${u} ${label} ER PO BID`);
+    scheduled.push(`${irDose} ${u} ${label} IR PO q4h scheduled (6 doses/day)`);
+    return {
+      scheduled,
+      breakthrough: breakthroughLine(drugKey, 'PO', dose),
+      notes: [],
+    };
+  }
+
+  // Parenteral (IV/IM/SC)
+  const perDose = roundSingleDose(dose / 6, drugKey);
+  return {
+    scheduled: [`${perDose} ${u} ${label} ${route} q4h scheduled (or PCA basal/demand)`],
+    breakthrough: breakthroughLine(drugKey, route, dose),
+    notes: [],
+  };
+}
+
+function renderConversionOrders(orders) {
+  if (!orders) return '';
+  return `
+    <div class="conv-orders">
+      <h4>Suggested orders</h4>
+      <div class="conv-order-line">
+        <span class="conv-label">Scheduled</span>
+        <span class="conv-value">${orders.scheduled.map(s => escapeHtml(s)).join('<br><span class="conv-or">or </span>')}</span>
+      </div>
+      <div class="conv-order-line">
+        <span class="conv-label">Breakthrough</span>
+        <span class="conv-value">${escapeHtml(orders.breakthrough)}</span>
+      </div>
+      ${orders.notes.length ? `<div class="conv-notes">${orders.notes.map(n => `<div class="conv-note">${escapeHtml(n)}</div>`).join('')}</div>` : ''}
+    </div>`;
 }
 
 /* ------------------------------------------------------------------ *
