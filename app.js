@@ -347,7 +347,100 @@ function render() {
     renderWarnings(rows);
   }
   renderTotals(rows, totalMME);
+  renderSafety(totalMME);
   renderConversion(totalMME);
+}
+
+function getRiskTier(mme) {
+  if (mme >= 90) return { level: 'high',    label: 'High risk',       explain: '≥90 MME/day' };
+  if (mme >= 50) return { level: 'caution', label: 'Caution',         explain: '≥50 MME/day' };
+  return                { level: 'low',     label: 'Below threshold', explain: '<50 MME/day' };
+}
+
+function buildSafetyAlerts(totalMME) {
+  const alerts = [];
+  if (totalMME >= 50) {
+    alerts.push({
+      severity: totalMME >= 90 ? 'severe' : 'normal',
+      title: 'Consider co-prescribing naloxone',
+      body: 'CDC and most pain guidelines recommend offering naloxone to patients on ≥50 MME/day, or with concurrent benzodiazepines, sleep apnea, prior overdose, or substance-use disorder. Counsel the patient and a household contact on use.',
+      cite: 'CDC 2022 Clinical Practice Guideline for Prescribing Opioids',
+    });
+  }
+  if (totalMME >= 90) {
+    alerts.push({
+      severity: 'severe',
+      title: 'High-risk dosing — careful review recommended',
+      body: 'Doses ≥90 MME/day carry meaningfully higher overdose risk. Reassess goals of pain therapy, check the PMP/PDMP, screen for concurrent sedatives, and consider tapering, adjunctive non-opioid therapies, or specialist input.',
+      cite: 'CDC 2022; SAMHSA',
+    });
+  }
+  if (ledger.some(e => e.drug === 'methadone')) {
+    alerts.push({
+      severity: 'severe',
+      title: 'Methadone-specific cautions',
+      body: 'Long, highly variable half-life (8–60 h) → delayed steady state (5–7 days) and accumulation risk. Obtain baseline and periodic ECG to monitor QTc; avoid concurrent QT-prolonging drugs. Equianalgesic conversions are non-linear; involve a pain or palliative specialist for opioid-tolerant conversions.',
+      cite: 'Methadone PI; CDC; Fudin et al.',
+    });
+  }
+  if (ledger.some(e => e.drug === 'meperidine')) {
+    alerts.push({
+      severity: 'severe',
+      title: 'Meperidine — generally avoid',
+      body: 'The metabolite normeperidine accumulates with prolonged use or renal impairment and causes CNS toxicity (tremor, myoclonus, seizures). Most pain guidelines and the AGS Beers Criteria recommend against meperidine for routine analgesia, especially in older adults. Choose an alternative opioid.',
+      cite: 'AGS Beers Criteria; ASPMN; APS',
+    });
+  }
+  if (ledger.some(e => e.drug === 'tramadol')) {
+    alerts.push({
+      severity: 'normal',
+      title: 'Tramadol — interaction & seizure cautions',
+      body: 'Lowers seizure threshold and can precipitate serotonin syndrome with SSRIs/SNRIs/MAOIs/triptans/linezolid. Analgesic effect depends on CYP2D6 metabolism; ultra-rapid metabolizers and children are at higher risk for sedation/respiratory depression.',
+      cite: 'Tramadol PI; FDA Drug Safety Communications',
+    });
+  }
+  if (ledger.some(e => e.drug === 'codeine')) {
+    alerts.push({
+      severity: 'normal',
+      title: 'Codeine — CYP2D6-dependent, avoid in children',
+      body: 'Variable CYP2D6 conversion to morphine makes effect unpredictable; ultra-rapid metabolizers are at risk for opioid toxicity. Contraindicated post-tonsillectomy/adenoidectomy in children and in breastfeeding mothers.',
+      cite: 'FDA Boxed Warning (2017)',
+    });
+  }
+  if (ledger.some(e => e.drug === 'fentanyl' && e.route === 'TD')) {
+    alerts.push({
+      severity: 'normal',
+      title: 'Fentanyl patch — opioid-naïve contraindication',
+      body: 'Transdermal fentanyl is only for opioid-tolerant patients (≥60 mg/day oral morphine equivalent for ≥1 week). Heat (fever, heating pad, hot tub) increases absorption and overdose risk. Residual release continues 12–24 hours after patch removal.',
+      cite: 'Duragesic PI',
+    });
+  }
+  return alerts;
+}
+
+function renderSafety(totalMME) {
+  const tier = getRiskTier(totalMME);
+  const badge = document.getElementById('risk-badge');
+  if (badge) {
+    badge.className = 'risk-badge risk-' + tier.level;
+    badge.textContent = totalMME > 0 ? `${tier.label} · ${tier.explain}` : tier.label;
+  }
+  const totalsCard = document.querySelector('.card.totals');
+  if (totalsCard) {
+    totalsCard.classList.remove('risk-low', 'risk-caution', 'risk-high');
+    totalsCard.classList.add('risk-' + tier.level);
+  }
+  const el = document.getElementById('safety-alerts');
+  if (!el) return;
+  const alerts = totalMME > 0 || ledger.length > 0 ? buildSafetyAlerts(totalMME) : [];
+  if (!alerts.length) { el.innerHTML = ''; return; }
+  el.innerHTML = alerts.map(a => `
+    <div class="safety-alert ${a.severity === 'severe' ? 'severe' : ''}">
+      <h4>${escapeHtml(a.title)}</h4>
+      <p>${escapeHtml(a.body)}</p>
+      <div class="alert-cite">${escapeHtml(a.cite)}</div>
+    </div>
+  `).join('');
 }
 
 function renderSimpleList(rows) {

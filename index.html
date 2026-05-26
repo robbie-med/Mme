@@ -112,9 +112,13 @@
   <!-- ========== TOTAL (simple + complex) ========== -->
   <section class="card totals show-in-simple show-in-complex">
     <div class="big-number">
-      <div class="value"><span id="total-mme">0</span><span class="unit"> mg/day MME</span></div>
+      <div class="value-row">
+        <span class="value" id="total-value-wrap"><span id="total-mme">0</span><span class="unit"> mg/day MME</span></span>
+        <span id="risk-badge" class="risk-badge risk-low">Below threshold</span>
+      </div>
       <div class="sub" id="totals-detail">Total oral morphine equivalents per 24 hours</div>
     </div>
+    <div id="safety-alerts" class="safety-alerts"></div>
   </section>
 
   <!-- ========== CONVERT (simple + complex) ========== -->
