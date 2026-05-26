@@ -197,9 +197,11 @@ function computeEntryMME(entry, windowHours, anchorTs) {
 function formatNum(n) {
   if (n == null || isNaN(n)) return '—';
   if (n === 0) return '0';
-  if (Math.abs(n) >= 100) return n.toFixed(0);
-  if (Math.abs(n) >= 10)  return n.toFixed(1);
-  return n.toFixed(2).replace(/\.?0+$/, '');
+  const abs = Math.abs(n);
+  const digits = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+  let s = n.toFixed(digits);
+  if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
 }
 function formatDate(ts) {
   const d = new Date(ts);
