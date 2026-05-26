@@ -269,8 +269,11 @@ function addManualEntry({ drug, route, dose, perDay }) {
   const label = (drug === 'fentanyl' && route === 'TD')
     ? `${formatNum(dose)} mcg/hr patch`
     : `${formatNum(dose)} ${u} × ${formatNum(perDay)}/day`;
-  ledger.push({ id: nextId++, source: 'manual', drug, route, label, strengthUnit: u, admins });
+  // Track _dose / _perDay so the entry round-trips through the URL hash and
+  // share-as-note exports cleanly without re-deriving from admins.
+  ledger.push({ id: nextId++, source: 'manual', drug, route, label, strengthUnit: u, admins, _dose: dose, _perDay: perDay });
   saveLedger();
+  syncHash();
 }
 
 function addParsedOrders(orders) {
@@ -282,19 +285,235 @@ function addParsedOrders(orders) {
     });
   });
   saveLedger();
+  syncHash();
 }
 
 function removeEntry(id) {
   const i = ledger.findIndex(e => e.id === id);
   if (i >= 0) ledger.splice(i, 1);
   saveLedger();
+  syncHash();
   render();
 }
 function clearAll() {
   if (ledger.length > 0 && !confirm('Remove all medications from the list?')) return;
   ledger.length = 0;
   saveLedger();
+  syncHash();
   render();
+}
+
+/* ------------------------------------------------------------------ *
+ * URL-hash share / restore
+ *
+ * The hash encodes a regimen as
+ *   #m=drug|route|dose|perDay;drug|route|dose|perDay&t=drug|route&rx=25
+ * Parsed entries with timestamp data are collapsed to "manual-style"
+ * (drug/route + daily dose, perDay=1) when serialized so the URL stays
+ * short enough to share.
+ * ------------------------------------------------------------------ */
+
+let suppressHashSync = false;
+
+function entryDailyDose(entry) {
+  if (entry.source === 'manual' && entry._dose != null) {
+    return { dose: entry._dose, perDay: entry._perDay || 1 };
+  }
+  // Parsed entry: compute its all-window normalized daily contribution.
+  const all = filterAdminsByWindow(entry.admins, 'all', Date.now());
+  if (all.kept.length === 0) return { dose: 0, perDay: 1 };
+  let total = all.kept.reduce((s, a) => s + a.dose, 0);
+  let spanH = 0;
+  if (all.kept.length > 1) {
+    spanH = (Math.max(...all.kept.map(a => a.ts)) - Math.min(...all.kept.map(a => a.ts))) / 3600000;
+  }
+  if (spanH > 24) total = (total * 24) / spanH;
+  // Fentanyl TD: dose is mcg/hr (latest); treat as a single rate.
+  if (entry.drug === 'fentanyl' && entry.route === 'TD') {
+    const latest = all.kept.reduce((a, b) => a.ts > b.ts ? a : b);
+    return { dose: latest.dose, perDay: 1 };
+  }
+  return { dose: total, perDay: 1 };
+}
+
+function buildShareHash() {
+  const items = ledger.map(e => {
+    const { dose, perDay } = entryDailyDose(e);
+    return [e.drug, e.route, +dose.toFixed(4), +perDay.toFixed(4)].join('|');
+  }).filter(s => s);
+  const target = (document.getElementById('target-drug') || {}).value || '';
+  const rx = (document.getElementById('reduction') || {}).value || '';
+  const view = currentView;
+  const parts = [];
+  if (items.length) parts.push('m=' + items.join(';'));
+  if (target) parts.push('t=' + target);
+  if (rx) parts.push('rx=' + rx);
+  if (view && view !== settings.defaultView) parts.push('v=' + view);
+  return parts.join('&');
+}
+
+function syncHash() {
+  if (suppressHashSync) return;
+  const newHash = buildShareHash();
+  const want = newHash ? '#' + newHash : '';
+  if (location.hash === want) return;
+  try { history.replaceState(null, '', want || location.pathname + location.search); }
+  catch (e) { location.hash = newHash; }
+}
+
+function loadFromHash() {
+  if (!location.hash || location.hash.length < 2) return false;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const m = params.get('m');
+  let loaded = false;
+  if (m) {
+    suppressHashSync = true;
+    // Replace ledger contents.
+    ledger.length = 0;
+    m.split(';').forEach(item => {
+      const [drug, route, doseStr, perDayStr] = item.split('|');
+      const dose = parseFloat(doseStr);
+      const perDay = parseFloat(perDayStr) || 1;
+      if (!DRUGS[drug] || !isFinite(dose) || dose <= 0) return;
+      if (!DRUGS[drug].factors[route]) return;
+      addManualEntry({ drug, route, dose, perDay });
+    });
+    suppressHashSync = false;
+    loaded = true;
+  }
+  const t = params.get('t');
+  if (t) {
+    const sel = document.getElementById('target-drug');
+    if (sel) sel.value = t;
+  }
+  const rx = params.get('rx');
+  if (rx) {
+    const sel = document.getElementById('reduction');
+    if (sel) sel.value = rx;
+  }
+  const v = params.get('v');
+  if (v && VIEWS.includes(v)) currentView = v;
+  return loaded;
+}
+
+/* ------------------------------------------------------------------ *
+ * Export / share UI
+ * ------------------------------------------------------------------ */
+
+function buildClinicalNote(rows, totalMME) {
+  const lines = [];
+  const now = new Date();
+  const stamp = now.toISOString().slice(0, 16).replace('T', ' ');
+  lines.push(`MME Calculator — ${stamp}`);
+  lines.push('');
+  lines.push('Current regimen:');
+  if (!rows.length) lines.push('  (none)');
+  else rows.forEach(r => {
+    const e = r.entry;
+    const drug = DRUGS[e.drug] ? DRUGS[e.drug].label : e.drug;
+    const route = ROUTE_LABELS[e.route] || e.route;
+    const mme = r.mme == null ? '—' : formatNum(r.mme);
+    lines.push(`  • ${drug} ${route} — ${e.label || ''} → ${mme} MME/day`);
+  });
+  lines.push('');
+  const tier = getRiskTier(totalMME);
+  const tierLabel = tier.label + (totalMME > 0 ? ` (${tier.explain})` : '');
+  lines.push(`Total: ${formatNum(totalMME)} MME / day  [${tierLabel}]`);
+
+  // Conversion section if a target is selected
+  const targetSel = document.getElementById('target-drug');
+  const reductionSel = document.getElementById('reduction');
+  if (targetSel && targetSel.value && totalMME > 0) {
+    const [drugKey, route] = targetSel.value.split('|');
+    const reduction = Number(reductionSel.value) / 100;
+    const adjMME = totalMME * (1 - reduction);
+    let dose, unit;
+    if (drugKey === 'methadone' && route === 'PO') {
+      const ratio = methadoneTargetFactor(adjMME);
+      dose = adjMME / ratio; unit = 'mg/day PO';
+    } else if (drugKey === 'fentanyl' && route === 'TD') {
+      dose = adjMME / DRUGS.fentanyl.factors.TD; unit = 'mcg/hr patch';
+    } else if (drugKey === 'fentanyl' && route === 'IV') {
+      dose = adjMME / DRUGS.fentanyl.factors.IV; unit = 'mcg/day IV';
+    } else {
+      const f = DRUGS[drugKey].factors[route];
+      if (typeof f === 'number') { dose = adjMME / f; unit = `mg/day ${route}`; }
+    }
+    if (dose != null) {
+      lines.push('');
+      lines.push(`Target conversion: ${DRUGS[drugKey].label} ${route}`);
+      lines.push(`  Cross-tolerance reduction: ${(reduction * 100).toFixed(0)}% (${formatNum(totalMME)} → ${formatNum(adjMME)} MME)`);
+      lines.push(`  Equivalent dose: ${formatNum(dose)} ${unit}`);
+      const orders = buildConversionOrders(drugKey, route, dose, adjMME);
+      if (orders) {
+        lines.push('');
+        lines.push('Suggested orders:');
+        orders.scheduled.forEach((s, i) => lines.push(`  ${i === 0 ? 'Scheduled:' : '  or'}     ${s}`));
+        lines.push(`  Breakthrough: ${orders.breakthrough}`);
+        orders.notes.forEach(n => lines.push(`  Note: ${n}`));
+      }
+    }
+  }
+
+  const alerts = buildSafetyAlerts(totalMME);
+  if (alerts.length) {
+    lines.push('');
+    lines.push('Safety considerations:');
+    alerts.forEach(a => lines.push(`  • ${a.title} — ${a.body} [${a.cite}]`));
+  }
+
+  lines.push('');
+  lines.push('Calculated with the MME Calculator (GlobalRPh equianalgesic; CDC tiered methadone factors).');
+  lines.push('Not a substitute for clinical judgement.');
+  return lines.join('\n');
+}
+
+async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) { /* fall through */ }
+  // Fallback
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    return true;
+  } catch (e) { return false; }
+}
+
+function flashButton(btn, ok) {
+  const prev = btn.textContent;
+  btn.textContent = ok ? 'Copied!' : 'Copy failed';
+  btn.disabled = true;
+  setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 1500);
+}
+
+function wireExport() {
+  const copyUrlBtn = document.getElementById('copy-url-btn');
+  const copyNoteBtn = document.getElementById('copy-note-btn');
+  const printBtn = document.getElementById('print-btn');
+  if (copyUrlBtn) copyUrlBtn.addEventListener('click', async () => {
+    syncHash();
+    const url = location.href;
+    const ok = await copyToClipboard(url);
+    flashButton(copyUrlBtn, ok);
+  });
+  if (copyNoteBtn) copyNoteBtn.addEventListener('click', async () => {
+    const rows = getRowsForActiveView();
+    const total = rows.reduce((s, r) => s + (r.mme || 0), 0);
+    const note = buildClinicalNote(rows, total);
+    const ok = await copyToClipboard(note);
+    flashButton(copyNoteBtn, ok);
+  });
+  if (printBtn) printBtn.addEventListener('click', () => window.print());
 }
 
 /* ------------------------------------------------------------------ *
@@ -1007,21 +1226,34 @@ function init() {
   document.getElementById('complex-clear-btn').addEventListener('click', clearAll);
 
   // Convert
-  document.getElementById('target-drug').addEventListener('change', render);
-  document.getElementById('reduction').addEventListener('change', render);
+  document.getElementById('target-drug').addEventListener('change', () => { syncHash(); render(); });
+  document.getElementById('reduction').addEventListener('change', () => { syncHash(); render(); });
 
   // View tabs
   document.querySelectorAll('.view-tab').forEach(btn => {
-    btn.addEventListener('click', () => setView(btn.dataset.view));
+    btn.addEventListener('click', () => { setView(btn.dataset.view); syncHash(); });
   });
 
   // Settings
   applySettingsToUI();
   wireSettings();
   wirePWA();
+  wireExport();
 
-  // Initial view from settings
-  setView(settings.defaultView);
+  // URL hash takes priority over saved ledger / settings for the initial state
+  // so a shared link reliably loads the regimen the recipient was sent.
+  let initialView = settings.defaultView;
+  const hashLoaded = loadFromHash();
+  if (hashLoaded) initialView = currentView || initialView;
+  setView(initialView);
+
+  // Restore final hash now that view is set (and selectors populated)
+  syncHash();
+
+  window.addEventListener('hashchange', () => {
+    const ok = loadFromHash();
+    if (ok) render();
+  });
 }
 
 /* ------------------------------------------------------------------ *

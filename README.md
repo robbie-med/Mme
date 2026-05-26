@@ -36,12 +36,32 @@ total to an equivalent dose of a different opioid.
   latest dose found in the data (or the current clock, your choice). Also
   supports 48 h / 72 h / "all administrations normalized to 24 h" for orders
   that span several days.
-- **Target conversion.** Pick a destination opioid (PO, IV/IM/SC, transdermal,
-  or chronic PO methadone) and apply an optional cross-tolerance reduction
-  (25% / 33% / 50%) to get the equivalent dose. Methadone outbound uses the
-  GlobalRPh tiered ratio appropriate for the total MME.
-- **No build step, no backend.** Three static files. Open `index.html` in any
-  browser, or host it on GitHub Pages.
+- **Target conversion with finishable orders.** Pick a destination opioid (PO,
+  IV/IM/SC, transdermal, or chronic PO methadone) and apply an optional
+  cross-tolerance reduction (25% / 33% / 50%) to get the equivalent dose plus
+  a suggested scheduled regimen (ER BID + IR q4h alternatives, TID for
+  methadone, nearest patch size for fentanyl TD) and a 10–20% breakthrough
+  PRN dose rounded to clinically reasonable increments. Drug-specific notes
+  fire for methadone (5–7 day steady state, ECG, specialist input), fentanyl
+  patch (opioid-tolerant only, heat hazard, 12–24 h onset), and fentanyl IV
+  (chest-wall rigidity at higher boluses).
+- **Risk-aware totals.** The headline MME is color-tiered using the CDC
+  cutoffs (≥50 MME → Caution + naloxone prompt; ≥90 MME → High risk +
+  PMP/PDMP review prompt). Drug-specific cautions appear for methadone,
+  meperidine, tramadol, codeine, and transdermal fentanyl whenever those
+  agents are in the list.
+- **Show the math.** Every MME number is clickable: click a row's MME to
+  expand a per-medication derivation (doses in window, normalization,
+  factor, citation) and click the headline total to see how the entries
+  sum.
+- **Share & export.** A "Copy shareable URL" button encodes the entire
+  regimen + conversion target into the URL hash so you can paste it into a
+  message or save it for later. "Copy as note" yields a clean plaintext
+  summary suitable for pasting into a progress note. "Print" produces a
+  print-styled clinical summary.
+- **No build step, no backend.** A handful of static files. Open
+  `index.html` in any browser, host it on GitHub Pages, or install the PWA
+  to your device for offline use.
 
 ## Conversion factors
 

@@ -654,3 +654,45 @@ body.view-settings .show-in-complex { display: none !important; }
   .manual-row { grid-template-columns: 1fr 1fr; }
   .totals .big-number .value { font-size: 32px; }
 }
+
+.export-row {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.export-row button { font-size: 13px; padding: 6px 12px; }
+.export-row button:disabled { opacity: 0.7; cursor: default; }
+
+/* Print stylesheet — clean summary, no chrome */
+@media print {
+  body { background: #fff; color: #000; }
+  header { background: #fff !important; color: #000 !important; padding: 0 0 12px; border-bottom: 1px solid #000; }
+  header h1 { color: #000; font-size: 18px; }
+  header .subtitle { color: #444; font-size: 12px; }
+  main { padding: 0; max-width: none; }
+  .view-tabs, .no-print, .paste-details, .ghost, .primary, .remove-btn, .mme-clickable {
+    display: none !important;
+  }
+  .show-in-settings { display: none !important; }
+  .card { border: none; box-shadow: none; padding: 6px 0; margin: 0; page-break-inside: avoid; background: #fff !important; }
+  .card.totals { border-top: 1px solid #444; padding-top: 10px; margin-top: 10px; }
+  .totals .big-number .value { font-size: 22px; color: #000 !important; }
+  .risk-badge {
+    border: 1px solid #000 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .safety-alert { border: 1px solid #ccc; background: #fff !important; padding: 8px 10px; margin: 4px 0; }
+  .safety-alert.severe { border-color: #000; }
+  table.meds { font-size: 11px; }
+  .conv-orders, .conv-notes { background: #fff; border-color: #ccc; }
+  /* Force-show derivation panels so the printed page captures the math */
+  .derivation-panel, .total-derivation-panel { display: block !important; background: #fff !important; border-left-color: #ccc !important; padding: 6px 0 !important; }
+  .meds-detail { display: table-row !important; }
+  .simple-med { page-break-inside: avoid; border-color: #ccc; }
+  .simple-med .derivation-panel { background: #fff !important; }
+  .refs { display: none; }
+}
