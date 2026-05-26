@@ -318,7 +318,92 @@ function setView(view) {
 }
 
 /* ------------------------------------------------------------------ *
- * Rendering
+ * Rendering — derivation expansion state
+ * ------------------------------------------------------------------ */
+
+const expandedRows = new Set();
+let totalExpanded = false;
+
+function wireRowExpansion(wrap) {
+  wrap.querySelectorAll('[data-expand]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = Number(btn.dataset.expand);
+      if (expandedRows.has(id)) expandedRows.delete(id); else expandedRows.add(id);
+      render();
+    });
+  });
+}
+
+function citationFor(entry) {
+  if (entry.drug === 'methadone' && entry.route === 'PO')
+    return 'CDC 2022 tiered methadone factor (1–20→×4, 21–40→×8, 41–60→×10, &gt;60→×12). Also Methadone PI, Fudin et al.';
+  if (entry.drug === 'fentanyl' && entry.route === 'TD')
+    return 'Duragesic PI; Donner et al. Pain 1996: 25 mcg/hr ≈ 60 MME (oral morphine 50–60 mg) per day.';
+  if (entry.drug === 'fentanyl')
+    return 'GlobalRPh equianalgesic: fentanyl IV 100 mcg ≈ morphine IV 10 mg ≈ morphine PO 30 mg (chronic).';
+  if (entry.drug === 'methadone' && entry.route === 'IV')
+    return 'GlobalRPh acute methadone IV 5 mg ≈ morphine IV 10 mg. Chronic dosing uses tiered PO factor.';
+  return 'GlobalRPh equianalgesic table (oral morphine 30 mg / IV morphine 10 mg chronic baseline).';
+}
+
+function buildDerivation(r) {
+  const e = r.entry;
+  const drugLabel = DRUGS[e.drug] ? DRUGS[e.drug].label : e.drug;
+  const u = drugUnit(e.drug);
+  const parts = [];
+
+  parts.push(`<div class="d-step"><span class="d-label">Medication</span><span class="d-value">${escapeHtml(drugLabel)} ${escapeHtml(ROUTE_LABELS[e.route] || e.route)} <span class="source-tag ${e.source}">${e.source}</span></span></div>`);
+
+  if (e.source === 'manual') {
+    parts.push(`<div class="d-step"><span class="d-label">Entered as</span><span class="d-value">${escapeHtml(e.label || '')}</span></div>`);
+  } else if (r.kept.length > 0) {
+    const adminLines = r.kept.slice(0, 30).map(a =>
+      `<div>${formatDate(a.ts)} &middot; ${formatNum(a.dose)} ${a.unit}</div>`).join('');
+    parts.push(`<div class="d-step"><span class="d-label">Doses in window</span><span class="d-value">${r.kept.length} dose${r.kept.length===1?'':'s'} · sum ${formatNum(r.totalDose)} ${u}<div class="d-admins">${adminLines}${r.kept.length>30?'<div>…</div>':''}</div></span></div>`);
+  } else {
+    parts.push(`<div class="d-step"><span class="d-label">Doses in window</span><span class="d-value">0 — entry contributes 0 MME for this window</span></div>`);
+  }
+
+  if (r.spanHours != null && r.spanHours > 24 && r.normalizedDaily !== r.totalDose) {
+    parts.push(`<div class="d-step"><span class="d-label">Normalized</span><span class="d-value">${formatNum(r.totalDose)} ${u} × 24 / ${r.spanHours.toFixed(1)} h = <strong>${formatNum(r.normalizedDaily)} ${u}/day</strong></span></div>`);
+  } else if (r.kept.length > 0 && !(e.drug === 'fentanyl' && e.route === 'TD')) {
+    parts.push(`<div class="d-step"><span class="d-label">Daily dose</span><span class="d-value"><strong>${formatNum(r.normalizedDaily)} ${u}/day</strong></span></div>`);
+  }
+
+  parts.push(`<div class="d-step"><span class="d-label">Calculation</span><span class="d-value">${escapeHtml(r.factorDescription || '—')}</span></div>`);
+
+  parts.push(`<div class="d-step d-result"><span class="d-label">MME / day</span><span class="d-value"><strong>${r.mme == null ? '—' : formatNum(r.mme)}</strong></span></div>`);
+
+  parts.push(`<div class="d-cite">${citationFor(e)}</div>`);
+  return parts.join('');
+}
+
+function buildTotalDerivation(rows, totalMME) {
+  if (!rows.length) return '<p class="hint">No medications to summarize.</p>';
+  const u = (k) => drugUnit(k);
+  const lines = rows.map(r => {
+    const e = r.entry;
+    const drug = DRUGS[e.drug] ? DRUGS[e.drug].label : e.drug;
+    return `<div class="t-line">
+      <span class="t-name">${escapeHtml(drug)} ${escapeHtml(e.route)}</span>
+      <span class="t-detail">${escapeHtml(r.factorDescription || '—')}</span>
+      <span class="t-mme">${r.mme == null ? '—' : formatNum(r.mme)} MME</span>
+    </div>`;
+  }).join('');
+  return `
+    <div class="t-derivation">
+      ${lines}
+      <div class="t-line t-sum">
+        <span class="t-name">Total</span>
+        <span class="t-detail"></span>
+        <span class="t-mme">${formatNum(totalMME)} MME / day</span>
+      </div>
+    </div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Rendering — main
  * ------------------------------------------------------------------ */
 
 function getRowsForActiveView() {
@@ -454,18 +539,25 @@ function renderSimpleList(rows) {
     const drug = DRUGS[e.drug] ? DRUGS[e.drug].label : e.drug;
     const routeClass = ({PO:'po', IV:'iv', IM:'iv', SC:'iv', TD:'td'})[e.route] || '';
     const routeLabel = ROUTE_LABELS[e.route] || e.route;
+    const expanded = expandedRows.has(e.id);
     return `
-      <div class="simple-med" data-id="${e.id}">
-        <div class="simple-med-main">
-          <div class="simple-med-name">${escapeHtml(drug)} <span class="tag ${routeClass}" style="font-size:11px">${escapeHtml(routeLabel)}</span></div>
-          <div class="simple-med-sub">${escapeHtml(e.label || '')}</div>
+      <div class="simple-med ${expanded ? 'expanded' : ''}" data-id="${e.id}">
+        <div class="simple-med-row">
+          <div class="simple-med-main">
+            <div class="simple-med-name">${escapeHtml(drug)} <span class="tag ${routeClass}" style="font-size:11px">${escapeHtml(routeLabel)}</span></div>
+            <div class="simple-med-sub">${escapeHtml(e.label || '')}</div>
+          </div>
+          <button class="simple-med-mme mme-clickable" data-expand="${e.id}" title="Show calculation">
+            ${r.mme == null ? '—' : formatNum(r.mme)}<span class="simple-med-mme-unit">MME</span>
+          </button>
+          <button class="remove-btn" data-remove="${e.id}" title="Remove">×</button>
         </div>
-        <div class="simple-med-mme">${r.mme == null ? '—' : formatNum(r.mme)}<span class="simple-med-mme-unit">MME</span></div>
-        <button class="remove-btn" data-remove="${e.id}" title="Remove">×</button>
+        ${expanded ? `<div class="derivation-panel">${buildDerivation(r)}</div>` : ''}
       </div>`;
   }).join('');
+  wireRowExpansion(wrap);
   wrap.querySelectorAll('button[data-remove]').forEach(btn =>
-    btn.addEventListener('click', () => removeEntry(Number(btn.dataset.remove))));
+    btn.addEventListener('click', e => { e.stopPropagation(); removeEntry(Number(btn.dataset.remove)); }));
 }
 
 function renderComplexTable(rows) {
@@ -474,6 +566,33 @@ function renderComplexTable(rows) {
     wrap.innerHTML = '<p class="empty-state">No medications yet. Add one above, or paste an MAR.</p>';
     return;
   }
+  const trs = [];
+  rows.forEach(r => {
+    const e = r.entry;
+    const drug = DRUGS[e.drug] ? DRUGS[e.drug].label : e.drug;
+    const routeClass = ({PO:'po', IV:'iv', IM:'iv', SC:'iv', TD:'td'})[e.route] || '';
+    const u = drugUnit(e.drug);
+    const srcTag = `<span class="source-tag ${e.source}">${e.source}</span>`;
+    let detail = e.label || '';
+    if (e.source === 'parsed' && r.kept.length) {
+      detail = r.kept.slice(0, 5).map(a => formatDate(a.ts) + ' · ' + formatNum(a.dose) + a.unit).join(' | ') +
+        (r.kept.length > 5 ? ' …' : '');
+    }
+    trs.push(`<tr data-id="${e.id}">
+      <td><div><strong>${escapeHtml(drug)}</strong> ${srcTag}</div>
+        <div class="admin-detail" title="${escapeHtml(detail)}">${escapeHtml(detail)}</div></td>
+      <td><span class="tag ${routeClass}">${e.route}</span></td>
+      <td class="num">${r.kept.length}</td>
+      <td class="num">${formatNum(r.totalDose)} ${u}</td>
+      <td class="num">${formatNum(r.normalizedDaily)} ${u}</td>
+      <td class="admin-detail" style="max-width:none">${escapeHtml(r.factorDescription)}</td>
+      <td class="num mme"><button class="mme-clickable" data-expand="${e.id}" title="Show calculation">${r.mme == null ? '—' : formatNum(r.mme)}</button></td>
+      <td><button class="remove-btn" data-remove="${e.id}" title="Remove">×</button></td>
+    </tr>`);
+    if (expandedRows.has(e.id)) {
+      trs.push(`<tr class="meds-detail"><td colspan="8"><div class="derivation-panel">${buildDerivation(r)}</div></td></tr>`);
+    }
+  });
   wrap.innerHTML = `
     <table class="meds">
       <thead><tr>
@@ -482,34 +601,11 @@ function renderComplexTable(rows) {
         <th class="num">Normalized / day</th><th>Calc</th>
         <th class="num">MME / day</th><th></th>
       </tr></thead>
-      <tbody>
-        ${rows.map(r => {
-          const e = r.entry;
-          const drug = DRUGS[e.drug] ? DRUGS[e.drug].label : e.drug;
-          const routeClass = ({PO:'po', IV:'iv', IM:'iv', SC:'iv', TD:'td'})[e.route] || '';
-          const u = drugUnit(e.drug);
-          const srcTag = `<span class="source-tag ${e.source}">${e.source}</span>`;
-          let detail = e.label || '';
-          if (e.source === 'parsed' && r.kept.length) {
-            detail = r.kept.slice(0, 5).map(a => formatDate(a.ts) + ' · ' + formatNum(a.dose) + a.unit).join(' | ') +
-              (r.kept.length > 5 ? ' …' : '');
-          }
-          return `<tr data-id="${e.id}">
-            <td><div><strong>${escapeHtml(drug)}</strong> ${srcTag}</div>
-              <div class="admin-detail" title="${escapeHtml(detail)}">${escapeHtml(detail)}</div></td>
-            <td><span class="tag ${routeClass}">${e.route}</span></td>
-            <td class="num">${r.kept.length}</td>
-            <td class="num">${formatNum(r.totalDose)} ${u}</td>
-            <td class="num">${formatNum(r.normalizedDaily)} ${u}</td>
-            <td class="admin-detail" style="max-width:none">${escapeHtml(r.factorDescription)}</td>
-            <td class="num mme">${r.mme == null ? '—' : formatNum(r.mme)}</td>
-            <td><button class="remove-btn" data-remove="${e.id}" title="Remove">×</button></td>
-          </tr>`;
-        }).join('')}
-      </tbody>
+      <tbody>${trs.join('')}</tbody>
     </table>`;
+  wireRowExpansion(wrap);
   wrap.querySelectorAll('button[data-remove]').forEach(btn =>
-    btn.addEventListener('click', () => removeEntry(Number(btn.dataset.remove))));
+    btn.addEventListener('click', e => { e.stopPropagation(); removeEntry(Number(btn.dataset.remove)); }));
 }
 
 function renderWarnings(rows) {
@@ -537,6 +633,28 @@ function renderTotals(rows, totalMME) {
   const drugCount = rows.filter(r => r.mme && r.mme > 0).length;
   document.getElementById('totals-detail').textContent =
     `Sum across ${drugCount} medication${drugCount === 1 ? '' : 's'} · window: ${windowLabel}`;
+
+  // Click-to-expand on the total value
+  const valWrap = document.getElementById('total-value-wrap');
+  if (valWrap) {
+    valWrap.classList.toggle('clickable', totalMME > 0);
+    valWrap.onclick = totalMME > 0 ? () => { totalExpanded = !totalExpanded; render(); } : null;
+  }
+  // Maintain an expansion panel below totals
+  let expEl = document.getElementById('total-derivation');
+  if (!expEl) {
+    expEl = document.createElement('div');
+    expEl.id = 'total-derivation';
+    expEl.className = 'total-derivation-panel';
+    document.querySelector('.card.totals .big-number').appendChild(expEl);
+  }
+  if (totalExpanded && totalMME > 0) {
+    expEl.hidden = false;
+    expEl.innerHTML = buildTotalDerivation(rows, totalMME);
+  } else {
+    expEl.hidden = true;
+    expEl.innerHTML = '';
+  }
 }
 
 function renderConversion(totalMME) {
