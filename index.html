@@ -81,6 +81,56 @@
     </div>
   </section>
 
+  <!-- ========== PATIENT CONTEXT (complex only, optional) ========== -->
+  <section class="card show-in-complex ctx-card">
+    <details id="ctx-details">
+      <summary>
+        <span class="ctx-summary-title">Patient context</span>
+        <span class="ctx-summary-hint">optional — tailors safety alerts</span>
+        <span class="ctx-active-chip" id="ctx-active-chip" hidden></span>
+      </summary>
+      <div class="ctx-body">
+        <p class="hint">All fields default to "not specified" and never affect MME math, only which safety alerts fire.</p>
+        <div class="ctx-form">
+          <div class="field">
+            <label for="ctx-age">Age</label>
+            <select id="ctx-age">
+              <option value="unspecified">— Not specified —</option>
+              <option value="under65">Under 65</option>
+              <option value="65-74">65 – 74</option>
+              <option value="75plus">75 or older</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="ctx-renal">Renal function</label>
+            <select id="ctx-renal">
+              <option value="unspecified">— Not specified —</option>
+              <option value="normal">Normal (CrCl ≥90)</option>
+              <option value="mild">Mild (CrCl 60–89)</option>
+              <option value="moderate">Moderate (CrCl 30–59)</option>
+              <option value="severe">Severe (CrCl 15–29)</option>
+              <option value="dialysis">Dialysis / CrCl &lt;15</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="ctx-hepatic">Hepatic function</label>
+            <select id="ctx-hepatic">
+              <option value="unspecified">— Not specified —</option>
+              <option value="normal">Normal</option>
+              <option value="mild">Mild (Child-Pugh A)</option>
+              <option value="moderate">Moderate (Child-Pugh B)</option>
+              <option value="severe">Severe (Child-Pugh C)</option>
+            </select>
+          </div>
+          <div class="field ctx-actions">
+            <label>&nbsp;</label>
+            <button id="ctx-clear" class="ghost" type="button">Clear</button>
+          </div>
+        </div>
+      </div>
+    </details>
+  </section>
+
   <!-- ========== MEDICATIONS — COMPLEX (full table) ========== -->
   <section class="card show-in-complex">
     <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">

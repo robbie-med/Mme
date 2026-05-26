@@ -296,6 +296,7 @@ function formatDate(ts) {
 
 const SETTINGS_KEY = 'mme.settings.v1';
 const LEDGER_KEY   = 'mme.ledger.v1';
+const CONTEXT_KEY  = 'mme.context.v1';
 
 const settings = {
   defaultView: 'simple',
@@ -317,6 +318,39 @@ function saveSettings() {
 
 const ledger = [];
 let nextId = 1;
+
+// Patient context — never affects MME math, only which alerts fire.
+const patientContext = {
+  age: 'unspecified',
+  renal: 'unspecified',
+  hepatic: 'unspecified',
+};
+
+function saveContext() {
+  try {
+    if (settings.persist) localStorage.setItem(CONTEXT_KEY, JSON.stringify(patientContext));
+    else localStorage.removeItem(CONTEXT_KEY);
+  } catch (e) {}
+}
+function loadContext() {
+  if (!settings.persist) return;
+  try {
+    const raw = localStorage.getItem(CONTEXT_KEY);
+    if (!raw) return;
+    const c = JSON.parse(raw);
+    if (c && typeof c === 'object') Object.assign(patientContext, c);
+  } catch (e) {}
+}
+function isContextActive() {
+  return patientContext.age !== 'unspecified'
+      || patientContext.renal !== 'unspecified'
+      || patientContext.hepatic !== 'unspecified';
+}
+function clearPatientContext() {
+  patientContext.age = 'unspecified';
+  patientContext.renal = 'unspecified';
+  patientContext.hepatic = 'unspecified';
+}
 
 function saveLedger() {
   try {
@@ -752,6 +786,96 @@ function getRiskTier(mme) {
   return                { level: 'low',     label: 'Below threshold', explain: '<50 MME/day' };
 }
 
+function addPatientContextAlerts(alerts, totalMME) {
+  const elderly = patientContext.age === '65-74' || patientContext.age === '75plus';
+  const veryElderly = patientContext.age === '75plus';
+  const renalImpaired = ['moderate', 'severe', 'dialysis'].includes(patientContext.renal);
+  const renalSevere   = ['severe', 'dialysis'].includes(patientContext.renal);
+  const hepaticImpaired = ['moderate', 'severe'].includes(patientContext.hepatic);
+  const hepaticSevere   = patientContext.hepatic === 'severe';
+  const has = (k) => ledger.some(e => e.drug === k);
+
+  if (elderly && totalMME > 0) {
+    alerts.push({
+      severity: veryElderly ? 'severe' : 'normal',
+      title: `Older adult${veryElderly ? ' (≥75)' : ' (65–74)'} — start low, go slow`,
+      body: 'Older adults are more susceptible to opioid-induced sedation, confusion, constipation, and falls. Reduce initial doses ~25–50%, titrate slowly, and reassess function and cognition each visit.',
+      cite: 'AGS Beers Criteria; CDC 2022.',
+    });
+  }
+  if (elderly && has('meperidine')) {
+    alerts.push({
+      severity: 'severe',
+      title: 'Older adult + meperidine — Beers Criteria avoid',
+      body: 'AGS Beers Criteria specifically recommend against meperidine in older adults due to neurotoxicity risk from normeperidine accumulation. Choose an alternative opioid.',
+      cite: 'AGS Beers Criteria 2023.',
+    });
+  }
+
+  if (renalImpaired) {
+    if (has('meperidine')) {
+      alerts.push({
+        severity: 'severe',
+        title: 'Renal impairment + meperidine — avoid',
+        body: 'Normeperidine clearance is renal. Accumulation in CKD or dialysis causes CNS toxicity (myoclonus, seizures). Avoid in this patient.',
+        cite: 'KDIGO; Meperidine PI.',
+      });
+    }
+    if (has('morphine')) {
+      alerts.push({
+        severity: 'severe',
+        title: 'Renal impairment + morphine — accumulation risk',
+        body: 'M3G/M6G metabolites accumulate with reduced renal clearance and cause prolonged sedation and respiratory depression. Consider hydromorphone, fentanyl, methadone, or buprenorphine as renal-friendlier alternatives.',
+        cite: 'KDIGO; UpToDate.',
+      });
+    }
+    if (has('codeine')) {
+      alerts.push({
+        severity: 'severe',
+        title: 'Renal impairment + codeine — avoid',
+        body: 'Codeine and its active metabolite morphine + M6G accumulate with reduced renal clearance. Choose an alternative.',
+        cite: 'KDIGO.',
+      });
+    }
+    if (has('tramadol')) {
+      alerts.push({
+        severity: 'normal',
+        title: 'Renal impairment + tramadol — reduce dose',
+        body: 'In CrCl <30 mL/min, max 200 mg/day; active metabolite accumulates. Consider 50% dose reduction and extending interval to q12h.',
+        cite: 'Tramadol PI.',
+      });
+    }
+  }
+  if (renalSevere && has('hydromorphone')) {
+    alerts.push({
+      severity: 'normal',
+      title: 'Severe renal impairment + hydromorphone — monitor',
+      body: 'H3G metabolite accumulates but is less neurotoxic than morphine’s M3G. Hydromorphone is generally preferred over morphine in CKD; still reduce dose and extend interval.',
+      cite: 'KDIGO.',
+    });
+  }
+
+  if (hepaticImpaired && totalMME > 0) {
+    alerts.push({
+      severity: hepaticSevere ? 'severe' : 'normal',
+      title: 'Hepatic impairment — reduce dose, prolonged half-life',
+      body: 'Most opioids undergo hepatic metabolism. Moderate–severe impairment prolongs half-life and elevates plasma levels. Reduce initial doses (often ~50%) and extend dosing intervals.',
+      cite: 'Drug-specific PIs.',
+    });
+  }
+  if (hepaticSevere) {
+    const hepAvoid = ['tramadol', 'tapentadol', 'meperidine'].filter(has);
+    if (hepAvoid.length) {
+      alerts.push({
+        severity: 'severe',
+        title: `Severe hepatic + ${hepAvoid.join(' / ')} — avoid`,
+        body: 'These agents are contraindicated or strongly discouraged in severe hepatic impairment due to unpredictable kinetics (tramadol/tapentadol) or active-metabolite accumulation (meperidine).',
+        cite: 'Tramadol/Tapentadol/Meperidine PIs.',
+      });
+    }
+  }
+}
+
 function buildSafetyAlerts(totalMME) {
   const alerts = [];
   if (totalMME >= 50) {
@@ -810,6 +934,7 @@ function buildSafetyAlerts(totalMME) {
       cite: 'Duragesic PI',
     });
   }
+  addPatientContextAlerts(alerts, totalMME);
   return alerts;
 }
 
@@ -1204,6 +1329,33 @@ function applySettingsToUI() {
   document.getElementById('setting-persist').checked = !!settings.persist;
   const tableSel = document.getElementById('setting-table');
   if (tableSel) tableSel.value = TABLES[settings.activeTable] ? settings.activeTable : DEFAULT_TABLE;
+  applyContextToUI();
+}
+
+function applyContextToUI() {
+  const map = { age: 'ctx-age', renal: 'ctx-renal', hepatic: 'ctx-hepatic' };
+  for (const key in map) {
+    const el = document.getElementById(map[key]);
+    if (el) el.value = patientContext[key];
+  }
+  const chip = document.getElementById('ctx-active-chip');
+  if (chip) {
+    if (isContextActive()) {
+      const parts = [];
+      if (patientContext.age !== 'unspecified')     parts.push(humanizeAge(patientContext.age));
+      if (patientContext.renal !== 'unspecified')   parts.push('renal: ' + patientContext.renal);
+      if (patientContext.hepatic !== 'unspecified') parts.push('hepatic: ' + patientContext.hepatic);
+      chip.hidden = false;
+      chip.textContent = 'Active · ' + parts.join(' · ');
+    } else {
+      chip.hidden = true;
+      chip.textContent = '';
+    }
+  }
+}
+
+function humanizeAge(a) {
+  return ({ 'under65': '<65', '65-74': '65–74', '75plus': '≥75' })[a] || a;
 }
 
 function wireSettings() {
@@ -1215,6 +1367,7 @@ function wireSettings() {
     settings.persist = e.target.checked;
     saveSettings();
     saveLedger();
+    saveContext();
   });
   const tableSel = document.getElementById('setting-table');
   if (tableSel) tableSel.addEventListener('change', e => {
@@ -1226,15 +1379,41 @@ function wireSettings() {
     }
   });
   document.getElementById('setting-reset').addEventListener('click', () => {
-    if (!confirm('Reset settings and remove all saved medications? This cannot be undone.')) return;
-    try { localStorage.removeItem(SETTINGS_KEY); localStorage.removeItem(LEDGER_KEY); } catch (e) {}
+    if (!confirm('Reset settings and remove all saved medications and patient context? This cannot be undone.')) return;
+    try {
+      localStorage.removeItem(SETTINGS_KEY);
+      localStorage.removeItem(LEDGER_KEY);
+      localStorage.removeItem(CONTEXT_KEY);
+    } catch (e) {}
     settings.defaultView = 'simple';
     settings.persist = true;
     settings.activeTable = DEFAULT_TABLE;
     ledger.length = 0;
     nextId = 1;
+    clearPatientContext();
     applySettingsToUI();
     setView('simple');
+  });
+}
+
+function wirePatientContext() {
+  const map = { age: 'ctx-age', renal: 'ctx-renal', hepatic: 'ctx-hepatic' };
+  for (const key in map) {
+    const el = document.getElementById(map[key]);
+    if (!el) continue;
+    el.addEventListener('change', e => {
+      patientContext[key] = e.target.value;
+      saveContext();
+      applyContextToUI();
+      render();
+    });
+  }
+  const clearBtn = document.getElementById('ctx-clear');
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    clearPatientContext();
+    saveContext();
+    applyContextToUI();
+    render();
   });
 }
 
@@ -1300,6 +1479,7 @@ fentanyl (Duragesic patch)
 function init() {
   loadSettings();
   loadLedger();
+  loadContext();
 
   // Drug + route selects
   populateDrugSelect();
@@ -1340,9 +1520,10 @@ function init() {
     btn.addEventListener('click', () => { setView(btn.dataset.view); syncHash(); });
   });
 
-  // Settings
+  // Settings + patient context
   applySettingsToUI();
   wireSettings();
+  wirePatientContext();
   wirePWA();
   wireExport();
 

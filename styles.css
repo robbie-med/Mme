@@ -541,6 +541,59 @@ body.view-settings .show-in-settings { display: revert; }
   letter-spacing: 0.04em;
 }
 
+/* Patient context */
+.ctx-card details summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+.ctx-card details summary::before { content: '▸'; color: var(--muted); transition: transform 0.15s; display: inline-block; width: 12px; }
+.ctx-card details[open] summary::before { content: '▾'; }
+.ctx-summary-title { font-size: 17px; font-weight: 600; color: var(--text); }
+.ctx-summary-hint { font-size: 13px; color: var(--muted); font-weight: 400; }
+.ctx-active-chip {
+  margin-left: auto;
+  background: #ecfeff;
+  color: #0e7490;
+  border: 1px solid #a5f3fc;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ctx-body { margin-top: 14px; }
+.ctx-form {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1.6fr auto;
+  gap: 10px;
+  align-items: end;
+}
+.ctx-form .field { display: flex; flex-direction: column; }
+.ctx-form label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.ctx-form select, .ctx-form input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+}
+.ctx-actions button { width: 100%; }
+@media (max-width: 640px) {
+  .ctx-form { grid-template-columns: 1fr 1fr; }
+}
+
 /* Settings */
 .setting { margin-bottom: 18px; }
 .setting > label {
