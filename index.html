@@ -3,19 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1e3a8a">
 <title>MME Calculator</title>
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="view-simple">
+
 <header>
   <h1>MME Calculator</h1>
   <p class="subtitle">Morphine Milligram Equivalents &middot; built for simple and complex regimens</p>
 </header>
 
 <main>
-  <section class="card">
+  <nav class="view-tabs" role="tablist" aria-label="View">
+    <button class="view-tab" data-view="simple" role="tab" aria-selected="true">Simple</button>
+    <button class="view-tab" data-view="complex" role="tab" aria-selected="false">Complex</button>
+    <button class="view-tab view-tab-end" data-view="settings" role="tab" aria-selected="false">Settings</button>
+  </nav>
+
+  <!-- ========== ADD MEDICATION (simple + complex) ========== -->
+  <section class="card show-in-simple show-in-complex">
     <h2>Add medication</h2>
-    <p class="hint">Enter one med at a time. Repeat for as many medications as the patient is on — they all add up below.</p>
+    <p class="hint">Enter one med at a time. Repeat for every opioid the patient is on — they all add up below.</p>
     <div class="add-form">
       <div class="field">
         <label>Drug</label>
@@ -40,7 +49,7 @@
     </div>
     <p class="hint" id="add-help"></p>
 
-    <details class="paste-details">
+    <details class="paste-details show-in-complex">
       <summary>Or paste a medication administration record (MAR)</summary>
       <div class="paste-body">
         <textarea id="input-text" rows="12" spellcheck="false"
@@ -54,7 +63,19 @@
     </details>
   </section>
 
-  <section class="card" id="results-card">
+  <!-- ========== MEDICATIONS — SIMPLE (cards) ========== -->
+  <section class="card show-in-simple">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h2 style="margin:0">Medications</h2>
+      <button id="simple-clear-btn" class="ghost" type="button">Clear all</button>
+    </div>
+    <div id="simple-meds-list">
+      <p class="empty-state">No medications yet. Add one above.</p>
+    </div>
+  </section>
+
+  <!-- ========== MEDICATIONS — COMPLEX (full table) ========== -->
+  <section class="card show-in-complex">
     <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
       <h2 style="margin:0">Medications</h2>
       <div class="row controls" style="margin:0">
@@ -72,7 +93,7 @@
             <option value="now">Current time</option>
           </select>
         </label>
-        <button id="clear-all-btn" class="ghost" type="button">Clear all</button>
+        <button id="complex-clear-btn" class="ghost" type="button">Clear all</button>
       </div>
     </div>
     <div id="warnings"></div>
@@ -81,14 +102,16 @@
     </div>
   </section>
 
-  <section class="card totals">
+  <!-- ========== TOTAL (simple + complex) ========== -->
+  <section class="card totals show-in-simple show-in-complex">
     <div class="big-number">
       <div class="value"><span id="total-mme">0</span><span class="unit"> mg/day MME</span></div>
       <div class="sub" id="totals-detail">Total oral morphine equivalents per 24 hours</div>
     </div>
   </section>
 
-  <section class="card">
+  <!-- ========== CONVERT (simple + complex) ========== -->
+  <section class="card show-in-simple show-in-complex">
     <h2>Convert to a target opioid</h2>
     <div class="row controls">
       <label class="ctl">Target
@@ -125,7 +148,8 @@
     <div id="conversion-result" class="conversion-result"></div>
   </section>
 
-  <section class="card refs">
+  <!-- ========== REFS (complex only) ========== -->
+  <section class="card refs show-in-complex">
     <details>
       <summary>Conversion factors &amp; assumptions</summary>
       <div class="ref-body">
@@ -158,6 +182,29 @@
         <p class="caveat"><strong>Caveats.</strong> Published equianalgesic ratios are estimates. Methadone conversions in opioid-tolerant patients should involve a pain or palliative specialist. Account for residual fentanyl release for 12&ndash;36 hours after patch removal and for any long-acting formulations. Use extra caution in elderly patients and in hepatic, renal, or pulmonary disease. This tool is not a substitute for clinical judgement.</p>
       </div>
     </details>
+  </section>
+
+  <!-- ========== SETTINGS ========== -->
+  <section class="card show-in-settings">
+    <h2>Settings</h2>
+    <div class="setting">
+      <label for="setting-default-view">Default view when the app opens</label>
+      <select id="setting-default-view">
+        <option value="simple">Simple</option>
+        <option value="complex">Complex</option>
+      </select>
+    </div>
+    <div class="setting">
+      <label class="check-label">
+        <input type="checkbox" id="setting-persist">
+        <span>Remember medications between sessions</span>
+      </label>
+      <p class="hint">When on, your medication list is saved to this device's local storage and restored when you reopen the app. Nothing is sent anywhere.</p>
+    </div>
+    <div class="setting">
+      <button id="setting-reset" class="ghost" type="button">Reset settings &amp; clear saved data</button>
+    </div>
+    <p class="hint privacy">All data stays on your device. The app is fully client-side.</p>
   </section>
 </main>
 
