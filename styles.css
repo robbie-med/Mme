@@ -492,13 +492,19 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
 }
 .view-tab-end { margin-left: auto; }
 
-/* View visibility */
-body.view-simple .show-in-complex,
-body.view-simple .show-in-settings,
-body.view-complex .show-in-simple,
-body.view-complex .show-in-settings,
-body.view-settings .show-in-simple,
-body.view-settings .show-in-complex { display: none !important; }
+/* View visibility — default-hide, then positively show in the views each
+ * element declares. Elements that carry multiple show-in-* classes (e.g.
+ * the Add card with `show-in-simple show-in-complex`) match at least one
+ * "show" rule in every view they belong to, so they render correctly.
+ * `display: revert` falls back to whatever the element's natural display
+ * is (block for <section>, etc.). */
+.show-in-simple,
+.show-in-complex,
+.show-in-settings { display: none; }
+
+body.view-simple   .show-in-simple,
+body.view-complex  .show-in-complex,
+body.view-settings .show-in-settings { display: revert; }
 
 /* Simple medication cards */
 .simple-med {
