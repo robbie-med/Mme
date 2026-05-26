@@ -1,16 +1,16 @@
 'use strict';
 
 // Bump CACHE_VERSION on each release of static assets to invalidate old caches.
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `mme-${CACHE_VERSION}`;
 
-// Files needed to render the app shell offline. Everything is relative to the
-// service worker's scope, which is set by where this file is served from.
+// App-shell files. Module sources live under js/ and are listed individually
+// so the service worker can precache the full graph for offline use.
 const APP_SHELL = [
   './',
   'index.html',
   'styles.css',
-  'app.js',
+  'js/main.js',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png',
