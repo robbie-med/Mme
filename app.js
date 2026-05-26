@@ -1,28 +1,124 @@
 'use strict';
 
 /* ------------------------------------------------------------------ *
- * Drug catalog — MME factor = mg oral morphine equivalent per 1 mg of
- * drug (per mcg for fentanyl IV; per mcg/hr-day for fentanyl TD).
- * Factors derived from the GlobalRPh equianalgesic table.
+ * Drug catalog (labels only).
+ * Conversion factors live in the TABLES registry below so the active
+ * equianalgesic table (CDC 2022 / GlobalRPh / ASCO+Practical) governs
+ * every MME calculation. The drug roster is identical across tables;
+ * only factor values and methadone tiers differ.
  * ------------------------------------------------------------------ */
 
 const DRUGS = {
-  morphine:      { label: 'Morphine',      factors: { PO: 1,     IV: 3,    IM: 3,    SC: 3 } },
-  hydromorphone: { label: 'Hydromorphone', factors: { PO: 4,     IV: 20,   IM: 20,   SC: 20 } },
-  oxycodone:     { label: 'Oxycodone',     factors: { PO: 1.5 } },
-  oxymorphone:   { label: 'Oxymorphone',   factors: { PO: 3,     IV: 30,   IM: 30,   SC: 30 } },
-  hydrocodone:   { label: 'Hydrocodone',   factors: { PO: 1 } },
-  codeine:       { label: 'Codeine',       factors: { PO: 0.15,  IV: 0.25, IM: 0.25, SC: 0.25 } },
-  tramadol:      { label: 'Tramadol',      factors: { PO: 0.1 } },
-  tapentadol:    { label: 'Tapentadol',    factors: { PO: 0.4 } },
-  meperidine:    { label: 'Meperidine',    factors: { PO: 0.1,   IV: 0.4,  IM: 0.4,  SC: 0.4 } },
-  fentanyl:      { label: 'Fentanyl',      factors: { IV: 0.3,   IM: 0.3,  SC: 0.3,  TD: 2.4 } },
-  methadone:     { label: 'Methadone',     factors: { PO: 'tiered', IV: 6 } },
-  levorphanol:   { label: 'Levorphanol',   factors: { PO: 11 } },
-  buprenorphine: { label: 'Buprenorphine', factors: {} },
-  nalbuphine:    { label: 'Nalbuphine',    factors: { IV: 3, IM: 3, SC: 3 } },
-  butorphanol:   { label: 'Butorphanol',   factors: { IV: 15, IM: 15 } },
+  morphine:      { label: 'Morphine' },
+  hydromorphone: { label: 'Hydromorphone' },
+  oxycodone:     { label: 'Oxycodone' },
+  oxymorphone:   { label: 'Oxymorphone' },
+  hydrocodone:   { label: 'Hydrocodone' },
+  codeine:       { label: 'Codeine' },
+  tramadol:      { label: 'Tramadol' },
+  tapentadol:    { label: 'Tapentadol' },
+  meperidine:    { label: 'Meperidine' },
+  fentanyl:      { label: 'Fentanyl' },
+  methadone:     { label: 'Methadone' },
+  levorphanol:   { label: 'Levorphanol' },
+  buprenorphine: { label: 'Buprenorphine' },
+  nalbuphine:    { label: 'Nalbuphine' },
+  butorphanol:   { label: 'Butorphanol' },
 };
+
+/* ------------------------------------------------------------------ *
+ * Equianalgesic table registry. Each table is self-contained:
+ *   - factors:        { drug -> { route -> MME per mg/mcg/mcg-hr-day } }
+ *                     Methadone PO carries the sentinel 'tiered' because
+ *                     its factor depends on total daily dose.
+ *   - methadoneIn:    daily methadone mg -> MME factor (inbound)
+ *   - methadoneOut:   total MME -> morphine:methadone ratio (outbound)
+ *   - label, cite:    human-readable identity for citations.
+ * ------------------------------------------------------------------ */
+
+const BASE_FACTORS = {
+  morphine:      { PO: 1,     IV: 3,    IM: 3,    SC: 3 },
+  hydromorphone: { PO: 4,     IV: 20,   IM: 20,   SC: 20 },
+  oxycodone:     { PO: 1.5 },
+  oxymorphone:   { PO: 3,     IV: 30,   IM: 30,   SC: 30 },
+  hydrocodone:   { PO: 1 },
+  codeine:       { PO: 0.15,  IV: 0.25, IM: 0.25, SC: 0.25 },
+  tramadol:      { PO: 0.1 },
+  tapentadol:    { PO: 0.4 },
+  meperidine:    { PO: 0.1,   IV: 0.4,  IM: 0.4,  SC: 0.4 },
+  fentanyl:      { IV: 0.3,   IM: 0.3,  SC: 0.3,  TD: 2.4 },
+  methadone:     { PO: 'tiered', IV: 6 },
+  levorphanol:   { PO: 11 },
+  buprenorphine: {},
+  nalbuphine:    { IV: 3, IM: 3, SC: 3 },
+  butorphanol:   { IV: 15, IM: 15 },
+};
+
+const TABLES = {
+  cdc: {
+    label: 'CDC 2022',
+    cite:  'CDC 2022 Clinical Practice Guideline for Prescribing Opioids; oral morphine = 1 MME baseline.',
+    factors: BASE_FACTORS,
+    methadoneIn(dailyMg) {
+      if (dailyMg <= 20) return 4;
+      if (dailyMg <= 40) return 8;
+      if (dailyMg <= 60) return 10;
+      return 12;
+    },
+    methadoneOut(mme) {
+      if (mme <= 80)   return 4;
+      if (mme <= 320)  return 8;
+      if (mme <= 600)  return 10;
+      return 12;
+    },
+  },
+  globalrph: {
+    label: 'GlobalRPh',
+    cite:  'GlobalRPh equianalgesic table; oral morphine 30 mg / IV morphine 10 mg chronic baseline.',
+    factors: BASE_FACTORS,
+    methadoneIn(_dailyMg) { return 7; },
+    methadoneOut(mme) {
+      if (mme <= 99)   return 4;
+      if (mme <= 299)  return 8;
+      if (mme <= 499)  return 12;
+      if (mme <= 999)  return 15;
+      if (mme <= 1999) return 20;
+      return 30;
+    },
+  },
+  asco: {
+    label: 'ASCO / Practical',
+    cite:  'ASCO Adult Cancer Pain Guideline; Mercadante 2001; Practical Pain Management (Fudin).',
+    factors: Object.assign({}, BASE_FACTORS, {
+      hydromorphone: { PO: 5, IV: 25, IM: 25, SC: 25 },
+    }),
+    methadoneIn(dailyMg) {
+      if (dailyMg <= 30) return 4;
+      if (dailyMg <= 90) return 8;
+      return 12;
+    },
+    methadoneOut(mme) {
+      if (mme <= 90)  return 4;
+      if (mme <= 300) return 8;
+      return 12;
+    },
+  },
+};
+
+const DEFAULT_TABLE = 'cdc';
+
+function getActiveTable() {
+  return TABLES[settings.activeTable] || TABLES[DEFAULT_TABLE];
+}
+function getFactor(drug, route) {
+  const f = getActiveTable().factors[drug];
+  return f ? f[route] : undefined;
+}
+function getRoutesForDrug(drug) {
+  return Object.keys(getActiveTable().factors[drug] || {});
+}
+function methadoneInFactor(dailyMg)   { return getActiveTable().methadoneIn(dailyMg); }
+function methadoneOutFactor(mmeTotal) { return getActiveTable().methadoneOut(mmeTotal); }
 
 const DRUG_ALIASES = {
   'ms contin': 'morphine', 'msir': 'morphine', 'roxanol': 'morphine', 'duramorph': 'morphine',
@@ -49,20 +145,6 @@ const ROUTE_LABELS = {
   PO: 'PO (oral)', IV: 'IV', IM: 'IM', SC: 'SC / SubQ', TD: 'Transdermal', SL: 'Sublingual',
 };
 
-function methadoneFactor(totalDailyMg) {
-  if (totalDailyMg <= 20) return 4;
-  if (totalDailyMg <= 40) return 8;
-  if (totalDailyMg <= 60) return 10;
-  return 12;
-}
-function methadoneTargetFactor(mmeTotal) {
-  if (mmeTotal <= 99)   return 4;
-  if (mmeTotal <= 299)  return 8;
-  if (mmeTotal <= 499)  return 12;
-  if (mmeTotal <= 999)  return 15;
-  if (mmeTotal <= 1999) return 20;
-  return 30;
-}
 function drugUnit(drugKey) { return drugKey === 'fentanyl' ? 'mcg' : 'mg'; }
 
 /* ------------------------------------------------------------------ *
@@ -163,7 +245,6 @@ function filterAdminsByWindow(admins, windowHours, anchorTs) {
 }
 
 function computeEntryMME(entry, windowHours, anchorTs) {
-  const drugInfo = DRUGS[entry.drug];
   const { kept, mode } = filterAdminsByWindow(entry.admins, windowHours, anchorTs);
   let totalDose = kept.reduce((s, a) => s + a.dose, 0);
   let unit = kept[0] ? kept[0].unit : entry.strengthUnit;
@@ -177,15 +258,16 @@ function computeEntryMME(entry, windowHours, anchorTs) {
     else {
       const latest = kept.reduce((a, b) => a.ts > b.ts ? a : b);
       const rate = latest.dose;
-      mme = rate * DRUGS.fentanyl.factors.TD;
-      factorDescription = `${rate} mcg/hr × 2.4 MME per mcg/hr-day`;
+      const tdFactor = getFactor('fentanyl', 'TD');
+      mme = rate * tdFactor;
+      factorDescription = `${rate} mcg/hr × ${tdFactor} MME per mcg/hr-day`;
     }
   } else if (entry.drug === 'methadone' && entry.route === 'PO') {
-    const factor = methadoneFactor(normalizedDaily);
+    const factor = methadoneInFactor(normalizedDaily);
     mme = normalizedDaily * factor;
-    factorDescription = `${formatNum(normalizedDaily)} mg/day × ${factor} (tiered)`;
+    factorDescription = `${formatNum(normalizedDaily)} mg/day × ${factor} (${getActiveTable().label} methadone tier)`;
   } else {
-    const factor = drugInfo && drugInfo.factors ? drugInfo.factors[entry.route] : null;
+    const factor = getFactor(entry.drug, entry.route);
     if (factor == null || typeof factor !== 'number')
       return { entry, kept, totalDose, normalizedDaily, mme: null, factorDescription: 'No conversion factor available' };
     mme = normalizedDaily * factor;
@@ -218,6 +300,7 @@ const LEDGER_KEY   = 'mme.ledger.v1';
 const settings = {
   defaultView: 'simple',
   persist: true,
+  activeTable: DEFAULT_TABLE,
 };
 
 function loadSettings() {
@@ -351,6 +434,10 @@ function buildShareHash() {
   if (target) parts.push('t=' + target);
   if (rx) parts.push('rx=' + rx);
   if (view && view !== settings.defaultView) parts.push('v=' + view);
+  // Only carry table key when it differs from the default to keep URLs short.
+  if (settings.activeTable && settings.activeTable !== DEFAULT_TABLE) {
+    parts.push('tbl=' + settings.activeTable);
+  }
   return parts.join('&');
 }
 
@@ -377,7 +464,7 @@ function loadFromHash() {
       const dose = parseFloat(doseStr);
       const perDay = parseFloat(perDayStr) || 1;
       if (!DRUGS[drug] || !isFinite(dose) || dose <= 0) return;
-      if (!DRUGS[drug].factors[route]) return;
+      if (getFactor(drug, route) == null) return;
       addManualEntry({ drug, route, dose, perDay });
     });
     suppressHashSync = false;
@@ -395,6 +482,8 @@ function loadFromHash() {
   }
   const v = params.get('v');
   if (v && VIEWS.includes(v)) currentView = v;
+  const tbl = params.get('tbl');
+  if (tbl && TABLES[tbl]) settings.activeTable = tbl;
   return loaded;
 }
 
@@ -431,14 +520,14 @@ function buildClinicalNote(rows, totalMME) {
     const adjMME = totalMME * (1 - reduction);
     let dose, unit;
     if (drugKey === 'methadone' && route === 'PO') {
-      const ratio = methadoneTargetFactor(adjMME);
+      const ratio = methadoneOutFactor(adjMME);
       dose = adjMME / ratio; unit = 'mg/day PO';
     } else if (drugKey === 'fentanyl' && route === 'TD') {
-      dose = adjMME / DRUGS.fentanyl.factors.TD; unit = 'mcg/hr patch';
+      dose = adjMME / getFactor('fentanyl', 'TD'); unit = 'mcg/hr patch';
     } else if (drugKey === 'fentanyl' && route === 'IV') {
-      dose = adjMME / DRUGS.fentanyl.factors.IV; unit = 'mcg/day IV';
+      dose = adjMME / getFactor('fentanyl', 'IV'); unit = 'mcg/day IV';
     } else {
-      const f = DRUGS[drugKey].factors[route];
+      const f = getFactor(drugKey, route);
       if (typeof f === 'number') { dose = adjMME / f; unit = `mg/day ${route}`; }
     }
     if (dose != null) {
@@ -465,7 +554,7 @@ function buildClinicalNote(rows, totalMME) {
   }
 
   lines.push('');
-  lines.push('Calculated with the MME Calculator (GlobalRPh equianalgesic; CDC tiered methadone factors).');
+  lines.push(`Calculated with the MME Calculator using the ${getActiveTable().label} equianalgesic table.`);
   lines.push('Not a substitute for clinical judgement.');
   return lines.join('\n');
 }
@@ -557,15 +646,15 @@ function wireRowExpansion(wrap) {
 }
 
 function citationFor(entry) {
+  const t = getActiveTable();
+  const tablePart = `${t.label}: ${t.cite}`;
   if (entry.drug === 'methadone' && entry.route === 'PO')
-    return 'CDC 2022 tiered methadone factor (1–20→×4, 21–40→×8, 41–60→×10, &gt;60→×12). Also Methadone PI, Fudin et al.';
+    return `${tablePart} Methadone PI; Fudin et al.`;
   if (entry.drug === 'fentanyl' && entry.route === 'TD')
-    return 'Duragesic PI; Donner et al. Pain 1996: 25 mcg/hr ≈ 60 MME (oral morphine 50–60 mg) per day.';
+    return `${tablePart} Duragesic PI; Donner et al. Pain 1996 (25 mcg/hr ≈ 60 MME).`;
   if (entry.drug === 'fentanyl')
-    return 'GlobalRPh equianalgesic: fentanyl IV 100 mcg ≈ morphine IV 10 mg ≈ morphine PO 30 mg (chronic).';
-  if (entry.drug === 'methadone' && entry.route === 'IV')
-    return 'GlobalRPh acute methadone IV 5 mg ≈ morphine IV 10 mg. Chronic dosing uses tiered PO factor.';
-  return 'GlobalRPh equianalgesic table (oral morphine 30 mg / IV morphine 10 mg chronic baseline).';
+    return `${tablePart} Fentanyl IV 100 mcg ≈ morphine IV 10 mg ≈ morphine PO 30 mg (chronic).`;
+  return tablePart;
 }
 
 function buildDerivation(r) {
@@ -852,8 +941,9 @@ function renderTotals(rows, totalMME) {
     windowLabel = w === 'all' ? 'all administrations (normalized to 24 h)' : `last ${w} h`;
   }
   const drugCount = rows.filter(r => r.mme && r.mme > 0).length;
+  const tableLabel = getActiveTable().label;
   document.getElementById('totals-detail').textContent =
-    `Sum across ${drugCount} medication${drugCount === 1 ? '' : 's'} · window: ${windowLabel}`;
+    `Sum across ${drugCount} medication${drugCount === 1 ? '' : 's'} · window: ${windowLabel} · via ${tableLabel}`;
 
   // Click-to-expand on the total value
   const valWrap = document.getElementById('total-value-wrap');
@@ -888,17 +978,19 @@ function renderConversion(totalMME) {
   const adjMME = totalMME * (1 - reduction);
   let dose, unit, calcDesc;
   if (drugKey === 'methadone' && route === 'PO') {
-    const ratio = methadoneTargetFactor(adjMME);
+    const ratio = methadoneOutFactor(adjMME);
     dose = adjMME / ratio; unit = 'mg/day PO';
-    calcDesc = `${formatNum(adjMME)} MME ÷ ${ratio} (tiered methadone ratio)`;
+    calcDesc = `${formatNum(adjMME)} MME ÷ ${ratio} (${getActiveTable().label} methadone ratio)`;
   } else if (drugKey === 'fentanyl' && route === 'TD') {
-    dose = adjMME / DRUGS.fentanyl.factors.TD; unit = 'mcg/hr patch';
-    calcDesc = `${formatNum(adjMME)} MME ÷ 2.4 MME per mcg/hr-day`;
+    const tdF = getFactor('fentanyl', 'TD');
+    dose = adjMME / tdF; unit = 'mcg/hr patch';
+    calcDesc = `${formatNum(adjMME)} MME ÷ ${tdF} MME per mcg/hr-day`;
   } else if (drugKey === 'fentanyl' && route === 'IV') {
-    dose = adjMME / DRUGS.fentanyl.factors.IV; unit = 'mcg/day IV';
-    calcDesc = `${formatNum(adjMME)} MME ÷ 0.3 MME per mcg`;
+    const ivF = getFactor('fentanyl', 'IV');
+    dose = adjMME / ivF; unit = 'mcg/day IV';
+    calcDesc = `${formatNum(adjMME)} MME ÷ ${ivF} MME per mcg`;
   } else {
-    const factor = DRUGS[drugKey].factors[route];
+    const factor = getFactor(drugKey, route);
     if (typeof factor !== 'number') {
       el.classList.add('show');
       el.innerHTML = '<strong>No conversion factor</strong> available for this target.';
@@ -1045,7 +1137,7 @@ function populateDrugSelect() {
 function updateRouteOptions() {
   const drug = document.getElementById('add-drug').value;
   if (!DRUGS[drug]) return;
-  const routes = Object.keys(DRUGS[drug].factors);
+  const routes = getRoutesForDrug(drug);
   const sel = document.getElementById('add-route');
   sel.innerHTML = routes.length
     ? routes.map(r => `<option value="${r}">${ROUTE_LABELS[r] || r}</option>`).join('')
@@ -1110,6 +1202,8 @@ function flashHelp(msg) {
 function applySettingsToUI() {
   document.getElementById('setting-default-view').value = settings.defaultView;
   document.getElementById('setting-persist').checked = !!settings.persist;
+  const tableSel = document.getElementById('setting-table');
+  if (tableSel) tableSel.value = TABLES[settings.activeTable] ? settings.activeTable : DEFAULT_TABLE;
 }
 
 function wireSettings() {
@@ -1122,11 +1216,21 @@ function wireSettings() {
     saveSettings();
     saveLedger();
   });
+  const tableSel = document.getElementById('setting-table');
+  if (tableSel) tableSel.addEventListener('change', e => {
+    if (TABLES[e.target.value]) {
+      settings.activeTable = e.target.value;
+      saveSettings();
+      syncHash();
+      render();
+    }
+  });
   document.getElementById('setting-reset').addEventListener('click', () => {
     if (!confirm('Reset settings and remove all saved medications? This cannot be undone.')) return;
     try { localStorage.removeItem(SETTINGS_KEY); localStorage.removeItem(LEDGER_KEY); } catch (e) {}
     settings.defaultView = 'simple';
     settings.persist = true;
+    settings.activeTable = DEFAULT_TABLE;
     ledger.length = 0;
     nextId = 1;
     applySettingsToUI();
@@ -1247,6 +1351,8 @@ function init() {
   let initialView = settings.defaultView;
   const hashLoaded = loadFromHash();
   if (hashLoaded) initialView = currentView || initialView;
+  // Re-sync UI controls after hash may have mutated settings (e.g. activeTable).
+  applySettingsToUI();
   setView(initialView);
 
   // Restore final hash now that view is set (and selectors populated)

@@ -211,6 +211,15 @@
       </select>
     </div>
     <div class="setting">
+      <label for="setting-table">Equianalgesic table</label>
+      <select id="setting-table">
+        <option value="cdc">CDC 2022</option>
+        <option value="globalrph">GlobalRPh</option>
+        <option value="asco">ASCO / Practical Pain Management</option>
+      </select>
+      <p class="hint">Determines every MME calculation, the methadone tier breakpoints, and the citation shown in derivations. CDC is the US default for prescribing-guideline MME thresholds.</p>
+    </div>
+    <div class="setting">
       <label class="check-label">
         <input type="checkbox" id="setting-persist">
         <span>Remember medications between sessions</span>
