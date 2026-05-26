@@ -1129,11 +1129,21 @@ function renderConversion(totalMME) {
     ? `Applied ${(reduction * 100).toFixed(0)}% cross-tolerance reduction (${formatNum(totalMME)} → ${formatNum(adjMME)} MME).`
     : 'No cross-tolerance reduction applied.';
   const orders = buildConversionOrders(drugKey, route, dose, adjMME);
+  // The before/after needs the *current* rows + total. Recompute against the
+  // active view so we use the same window as the user is looking at.
+  const currentRows = getRowsForActiveView();
+  const currentTotal = currentRows.reduce((s, r) => s + (r.mme || 0), 0);
   el.classList.add('show');
   el.innerHTML = `<div>Equivalent dose of <strong>${escapeHtml(drugLabel)}</strong>:</div>
     <div class="target-dose">${formatNum(dose)} ${escapeHtml(unit)}</div>
     <div class="breakdown">${escapeHtml(calcDesc)}<br>${escapeHtml(reductionText)}</div>
-    ${renderConversionOrders(orders)}`;
+    ${renderConversionOrders(orders)}
+    ${buildBeforeAfter(currentRows, currentTotal, orders, drugKey, route)}`;
+  const applyBtn = el.querySelector('#apply-regimen-btn');
+  if (applyBtn) applyBtn.addEventListener('click', () => {
+    applyProposedRegimen(applyBtn.dataset.drug, applyBtn.dataset.route,
+                          applyBtn.dataset.dose, applyBtn.dataset.perday);
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -1185,6 +1195,7 @@ function buildConversionOrders(drugKey, route, dose, adjMME) {
         'Obtain baseline ECG; reassess QTc with dose changes or QT-prolonging drugs.',
         'Highly variable kinetics — pain or palliative specialist input strongly advised.',
       ],
+      primary: { drug: 'methadone', route: 'PO', dose: per, perDay: 3 },
     };
   }
 
@@ -1200,6 +1211,7 @@ function buildConversionOrders(drugKey, route, dose, adjMME) {
         'Onset 12–24 h after first patch — overlap with prior opioid initially.',
         'Heat (fever, hot tub, heating pad) increases absorption and overdose risk.',
       ],
+      primary: { drug: 'fentanyl', route: 'TD', dose: conservative, perDay: 1 },
     };
   }
 
@@ -1209,6 +1221,8 @@ function buildConversionOrders(drugKey, route, dose, adjMME) {
       scheduled: [`Continuous infusion ~${rate} mcg/hr (titrate to effect)`],
       breakthrough: '25–50 mcg IV bolus q15min PRN, then adjust basal rate',
       notes: ['Use monitored setting; rapid bolus risks chest-wall rigidity at higher doses.'],
+      // Represent continuous infusion as rate × 24/day so daily mcg = rate × 24.
+      primary: { drug: 'fentanyl', route: 'IV', dose: rate, perDay: 24 },
     };
   }
 
@@ -1222,6 +1236,10 @@ function buildConversionOrders(drugKey, route, dose, adjMME) {
       scheduled,
       breakthrough: breakthroughLine(drugKey, 'PO', dose),
       notes: [],
+      // Pick the first scheduled option as the applicable primary regimen.
+      primary: HAS_ER.has(drugKey)
+        ? { drug: drugKey, route: 'PO', dose: erDose, perDay: 2 }
+        : { drug: drugKey, route: 'PO', dose: irDose, perDay: 6 },
     };
   }
 
@@ -1231,7 +1249,21 @@ function buildConversionOrders(drugKey, route, dose, adjMME) {
     scheduled: [`${perDose} ${u} ${label} ${route} q4h scheduled (or PCA basal/demand)`],
     breakthrough: breakthroughLine(drugKey, route, dose),
     notes: [],
+    primary: { drug: drugKey, route, dose: perDose, perDay: 6 },
   };
+}
+
+// Compute MME for a hypothetical (drug, route, perDose, perDay) without
+// touching the ledger — used by the before/after preview.
+function previewMME(drug, route, dose, perDay) {
+  const isTD = drug === 'fentanyl' && route === 'TD';
+  const dailyDose = isTD ? dose : dose * perDay;
+  if (drug === 'methadone' && route === 'PO') {
+    return dailyDose * methadoneInFactor(dailyDose);
+  }
+  if (isTD) return dose * getFactor('fentanyl', 'TD');
+  const factor = getFactor(drug, route);
+  return typeof factor === 'number' ? dailyDose * factor : 0;
 }
 
 function renderConversionOrders(orders) {
@@ -1249,6 +1281,100 @@ function renderConversionOrders(orders) {
       </div>
       ${orders.notes.length ? `<div class="conv-notes">${orders.notes.map(n => `<div class="conv-note">${escapeHtml(n)}</div>`).join('')}</div>` : ''}
     </div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Before / after comparison panel
+ * ------------------------------------------------------------------ */
+
+function buildBeforeAfter(currentRows, currentTotal, orders, drugKey, route) {
+  if (!orders || !orders.primary) return '';
+  const p = orders.primary;
+  const projectedMME = previewMME(p.drug, p.route, p.dose, p.perDay);
+  const currentTier = getRiskTier(currentTotal);
+  const projectedTier = getRiskTier(projectedMME);
+
+  const u = unitFor(p.drug);
+  const drugLabel = DRUGS[p.drug].label;
+  let primaryDescr;
+  if (p.drug === 'fentanyl' && p.route === 'TD') {
+    primaryDescr = `${formatNum(p.dose)} mcg/hr patch`;
+  } else if (p.drug === 'fentanyl' && p.route === 'IV') {
+    primaryDescr = `${formatNum(p.dose)} mcg/hr continuous (× 24 h)`;
+  } else if (p.drug === 'methadone' && p.route === 'PO') {
+    primaryDescr = `${formatNum(p.dose)} mg PO TID`;
+  } else if (p.route === 'PO') {
+    primaryDescr = p.perDay === 2
+      ? `${formatNum(p.dose)} ${u} ${drugLabel} ER PO BID`
+      : `${formatNum(p.dose)} ${u} ${drugLabel} IR PO ${perDayToInterval(p.perDay)} scheduled`;
+  } else {
+    primaryDescr = `${formatNum(p.dose)} ${u} ${drugLabel} ${p.route} ${perDayToInterval(p.perDay)} scheduled`;
+  }
+
+  const currentList = currentRows.length
+    ? currentRows.map(r => {
+        const drug = DRUGS[r.entry.drug] ? DRUGS[r.entry.drug].label : r.entry.drug;
+        return `<div class="cmp-row">
+          <span class="cmp-name">${escapeHtml(drug)} ${escapeHtml(r.entry.route)}</span>
+          <span class="cmp-mme">${r.mme == null ? '—' : formatNum(r.mme)} MME</span>
+        </div>`;
+      }).join('')
+    : '<div class="cmp-row cmp-empty">No medications</div>';
+
+  const projList = `
+    <div class="cmp-row">
+      <span class="cmp-name">${escapeHtml(primaryDescr)}</span>
+      <span class="cmp-mme">${formatNum(projectedMME)} MME</span>
+    </div>
+    <div class="cmp-row cmp-prn">
+      <span class="cmp-name">+ PRN: ${escapeHtml(orders.breakthrough)}</span>
+      <span class="cmp-mme">as-needed</span>
+    </div>`;
+
+  const deltaMME = projectedMME - currentTotal;
+  const deltaStr = deltaMME === 0 ? '±0' : (deltaMME > 0 ? '+' : '') + formatNum(deltaMME);
+  const deltaClass = deltaMME < 0 ? 'cmp-delta-down' : deltaMME > 0 ? 'cmp-delta-up' : '';
+
+  return `
+    <div class="conv-compare">
+      <div class="cmp-side cmp-current">
+        <div class="cmp-title">Current</div>
+        <div class="cmp-meds">${currentList}</div>
+        <div class="cmp-foot">
+          <span class="cmp-total"><strong>${formatNum(currentTotal)}</strong> MME/day</span>
+          <span class="risk-badge risk-${currentTier.level}">${currentTier.label}</span>
+        </div>
+      </div>
+      <div class="cmp-arrow" aria-hidden="true">→</div>
+      <div class="cmp-side cmp-projected">
+        <div class="cmp-title">Proposed (scheduled)</div>
+        <div class="cmp-meds">${projList}</div>
+        <div class="cmp-foot">
+          <span class="cmp-total"><strong>${formatNum(projectedMME)}</strong> MME/day <span class="${deltaClass}">(${deltaStr})</span></span>
+          <span class="risk-badge risk-${projectedTier.level}">${projectedTier.label}</span>
+        </div>
+        <button type="button" class="ghost cmp-apply" id="apply-regimen-btn"
+          data-drug="${escapeHtml(p.drug)}" data-route="${escapeHtml(p.route)}"
+          data-dose="${p.dose}" data-perday="${p.perDay}">
+          Apply this regimen
+        </button>
+      </div>
+    </div>`;
+}
+
+function perDayToInterval(n) {
+  return n === 1 ? 'daily' : n === 2 ? 'BID' : n === 3 ? 'TID' : n === 4 ? 'QID' : n === 6 ? 'q4h' : `${n}×/day`;
+}
+
+function applyProposedRegimen(drug, route, dose, perDay) {
+  if (!confirm(`Replace your current regimen with: ${drug} ${route} ${dose} × ${perDay}/day?\n\nYour current medications will be removed from the list.`)) return;
+  ledger.length = 0;
+  addManualEntry({ drug, route, dose: Number(dose), perDay: Number(perDay) });
+  // Clear target so the user sees the new regimen as the live total, not a conversion of it.
+  const targetSel = document.getElementById('target-drug');
+  if (targetSel) targetSel.value = '';
+  syncHash();
+  render();
 }
 
 /* ------------------------------------------------------------------ *

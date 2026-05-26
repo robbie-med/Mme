@@ -452,6 +452,85 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
   .conv-order-line { grid-template-columns: 1fr; gap: 2px; }
 }
 
+/* Before / after comparison */
+.conv-compare {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed #bfdbfe;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+.cmp-side {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cmp-projected { background: #f0f7ff; border-color: #bfdbfe; }
+.cmp-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.cmp-meds { display: flex; flex-direction: column; gap: 6px; font-size: 13px; flex: 1; }
+.cmp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.cmp-row:last-child { border-bottom: none; padding-bottom: 0; }
+.cmp-name { color: var(--text); font-weight: 500; flex: 1; min-width: 0; }
+.cmp-mme { color: var(--accent); font-weight: 700; white-space: nowrap; }
+.cmp-row.cmp-prn .cmp-name { color: var(--muted); font-weight: 400; font-style: italic; }
+.cmp-row.cmp-prn .cmp-mme { color: var(--muted); font-weight: 500; font-size: 12px; }
+.cmp-row.cmp-empty { color: var(--muted); font-style: italic; border-bottom: none; }
+.cmp-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.cmp-total { font-size: 15px; color: var(--text); }
+.cmp-total strong { font-size: 20px; font-weight: 700; color: var(--accent-dark); }
+.cmp-delta-down { color: var(--good); font-weight: 600; font-size: 13px; }
+.cmp-delta-up   { color: #b91c1c;     font-weight: 600; font-size: 13px; }
+.cmp-arrow {
+  align-self: center;
+  font-size: 28px;
+  color: var(--accent);
+  font-weight: 300;
+  padding: 0 4px;
+}
+.cmp-apply {
+  margin-top: 4px;
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cmp-apply:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+@media (max-width: 720px) {
+  .conv-compare { grid-template-columns: 1fr; }
+  .cmp-arrow { transform: rotate(90deg); padding: 4px 0; text-align: center; }
+}
+
 .warning {
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);
