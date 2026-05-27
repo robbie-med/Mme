@@ -1,7 +1,7 @@
 'use strict';
 
 // Bump CACHE_VERSION on each release of static assets to invalidate old caches.
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `mme-${CACHE_VERSION}`;
 
 // App-shell files. Module sources live under js/ and are listed individually
@@ -25,6 +25,7 @@ const APP_SHELL = [
   'js/share.js',
   'js/pwa.js',
   'js/util.js',
+  'js/taper.js',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png',

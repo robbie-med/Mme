@@ -531,6 +531,54 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
   .cmp-arrow { transform: rotate(90deg); padding: 4px 0; text-align: center; }
 }
 
+/* Taper schedule */
+.taper-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed #bfdbfe;
+}
+.taper-section summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  color: var(--accent-dark);
+  font-weight: 600;
+  font-size: 14px;
+}
+.taper-section summary::before { content: '▸'; display: inline-block; width: 12px; color: var(--muted); }
+.taper-section[open] summary::before { content: '▾'; }
+.taper-summary-title { font-size: 14px; font-weight: 700; color: var(--accent-dark); text-transform: uppercase; letter-spacing: 0.05em; }
+.taper-summary-hint  { font-size: 12px; font-weight: 400; color: var(--muted); }
+.taper-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  margin: 12px 0;
+}
+.taper-controls label {
+  display: flex; flex-direction: column;
+  font-size: 12px; color: var(--muted); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.taper-controls select {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+  text-transform: none;
+}
+.taper-controls button { align-self: end; }
+.taper-output { overflow-x: auto; }
+.taper-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+.taper-table th, .taper-table td { border-bottom: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.taper-table th { background: #f8fafc; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; }
+.taper-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
 .warning {
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);

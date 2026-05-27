@@ -3,7 +3,7 @@
 // render() whenever ledger/view/settings state changes.
 import { DRUGS, ROUTE_LABELS, drugUnit } from './drugs.js';
 import { getActiveTable, getFactor } from './tables.js';
-import { computeEntryMME, formatNum, formatDate } from './mme.js';
+import { computeEntryMME, previewMME, formatNum, formatDate } from './mme.js';
 import { ledger, removeEntry } from './ledger.js';
 import { view, expandedRows, viewState, setTotalExpanded } from './views.js';
 import { getRiskTier, buildSafetyAlerts } from './safety.js';
@@ -11,6 +11,7 @@ import {
   buildConversionOrders, renderConversionOrders, buildBeforeAfter,
   applyProposedRegimen, computeTargetDose,
 } from './conversion.js';
+import { buildTaperSection, wireTaperControls } from './taper.js';
 import { escapeHtml } from './util.js';
 
 function wireRowExpansion(wrap) {
@@ -280,15 +281,20 @@ function renderConversion(totalMME) {
   const orders = buildConversionOrders(drugKey, route, tc.dose, adjMME);
   const currentRows = getRowsForActiveView();
   const currentTotal = currentRows.reduce((s, r) => s + (r.mme || 0), 0);
+  const primaryMME = orders.primary
+    ? previewMME(orders.primary.drug, orders.primary.route, orders.primary.dose, orders.primary.perDay)
+    : 0;
   el.classList.add('show');
   el.innerHTML = `<div>Equivalent dose of <strong>${escapeHtml(drugLabel)}</strong>:</div>
     <div class="target-dose">${formatNum(tc.dose)} ${escapeHtml(tc.unit)}</div>
     <div class="breakdown">${escapeHtml(tc.calcDesc)}<br>${escapeHtml(reductionText)}</div>
     ${renderConversionOrders(orders)}
-    ${buildBeforeAfter(currentRows, currentTotal, orders)}`;
+    ${buildBeforeAfter(currentRows, currentTotal, orders)}
+    ${buildTaperSection(orders.primary, primaryMME)}`;
   const applyBtn = el.querySelector('#apply-regimen-btn');
   if (applyBtn) applyBtn.addEventListener('click', () => {
     applyProposedRegimen(applyBtn.dataset.drug, applyBtn.dataset.route,
                          applyBtn.dataset.dose, applyBtn.dataset.perday);
   });
+  if (orders.primary) wireTaperControls(el);
 }
