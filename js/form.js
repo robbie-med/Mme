@@ -32,7 +32,7 @@ export function updateDoseLabels() {
   const help = document.getElementById('add-help');
   const u = drugUnit(drug);
 
-  // Update the PCA unit hints too — they share the per-drug unit.
+  // Update the PCA unit hints too; they share the per-drug unit.
   const pcaBasalUnit = document.getElementById('pca-basal-unit');
   const pcaDemandUnit = document.getElementById('pca-demand-unit');
   if (pcaBasalUnit)  pcaBasalUnit.textContent  = `(${u}/hr)`;
@@ -52,7 +52,7 @@ export function updateDoseLabels() {
     doseLabel.firstChild.textContent = 'Dose per administration ';
     doseUnitHint.textContent = '(mg)';
     freqField.style.display = ''; freqLabel.textContent = 'Doses per day';
-    help.textContent = 'Chronic dosing assumed — tiered methadone factor applied to total daily mg.';
+    help.textContent = 'Chronic dosing assumed; tiered methadone factor applied to total daily mg.';
   } else {
     doseLabel.firstChild.textContent = 'Dose per administration ';
     doseUnitHint.textContent = `(${u})`;

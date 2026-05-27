@@ -3,7 +3,7 @@
 // settings.* / patientContext.* directly and call save*() after writes.
 //
 // Note: the default activeTable is hardcoded as 'cdc' rather than imported
-// from tables.js to avoid a circular dep — tables.js imports the live
+// from tables.js to avoid a circular dep; tables.js imports the live
 // `settings` object from here.
 
 export const SETTINGS_KEY = 'mme.settings.v1';
@@ -28,7 +28,7 @@ export function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
 }
 
-// Patient context — never affects MME math, only which alerts fire.
+// Patient context: never affects MME math, only which alerts fire.
 export const patientContext = {
   age: 'unspecified',
   renal: 'unspecified',

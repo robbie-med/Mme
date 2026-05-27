@@ -100,7 +100,7 @@ function buildClinicalNote(rows, totalMME) {
   const lines = [];
   const now = new Date();
   const stamp = now.toISOString().slice(0, 16).replace('T', ' ');
-  lines.push(`MME Calculator — ${stamp}`);
+  lines.push(`MME Calculator · ${stamp}`);
   lines.push('');
   lines.push('Current regimen:');
   if (!rows.length) lines.push('  (none)');
@@ -109,7 +109,7 @@ function buildClinicalNote(rows, totalMME) {
     const drug = DRUGS[e.drug] ? DRUGS[e.drug].label : e.drug;
     const route = ROUTE_LABELS[e.route] || e.route;
     const mme = r.mme == null ? '—' : formatNum(r.mme);
-    lines.push(`  • ${drug} ${route} — ${e.label || ''} → ${mme} MME/day`);
+    lines.push(`  • ${drug} ${route} · ${e.label || ''} → ${mme} MME/day`);
   });
   lines.push('');
   const tier = getRiskTier(totalMME);
@@ -154,7 +154,7 @@ function buildClinicalNote(rows, totalMME) {
   if (alerts.length) {
     lines.push('');
     lines.push('Safety considerations:');
-    alerts.forEach(a => lines.push(`  • ${a.title} — ${a.body} [${a.cite}]`));
+    alerts.forEach(a => lines.push(`  • ${a.title}: ${a.body} [${a.cite}]`));
   }
 
   lines.push('');

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#1e3a8a">
+<meta name="theme-color" content="#ede6d4">
 <title>MME Calculator</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -25,13 +25,14 @@
   <nav class="view-tabs" role="tablist" aria-label="View">
     <button class="view-tab" data-view="simple" role="tab" aria-selected="true">Simple</button>
     <button class="view-tab" data-view="complex" role="tab" aria-selected="false">Complex</button>
-    <button class="view-tab view-tab-end" data-view="settings" role="tab" aria-selected="false">Settings</button>
+    <button class="view-tab view-tab-end" data-view="about" role="tab" aria-selected="false">About</button>
+    <button class="view-tab" data-view="settings" role="tab" aria-selected="false">Settings</button>
   </nav>
 
   <!-- ========== ADD MEDICATION (simple + complex) ========== -->
   <section class="card show-in-simple show-in-complex">
     <h2>Add medication</h2>
-    <p class="hint">Enter one med at a time. Repeat for every opioid the patient is on — they all add up below.</p>
+    <p class="hint">Enter one med at a time. Repeat for every opioid the patient is on; they all add up below.</p>
     <div class="add-mode-row">
       <span class="add-mode-label">Mode:</span>
       <label class="add-mode-opt"><input type="radio" name="add-mode" value="scheduled" checked> Scheduled / PRN</label>
@@ -81,7 +82,7 @@
       <summary>Or paste a medication administration record (MAR)</summary>
       <div class="paste-body">
         <textarea id="input-text" rows="12" spellcheck="false"
-          placeholder="Paste the medication block from your EHR — drug name, order line, then date / time / dose triplets..."></textarea>
+          placeholder="Paste the medication block from your EHR: drug name, order line, then date / time / dose triplets..."></textarea>
         <div class="row controls">
           <button id="parse-btn" class="primary" type="button">Parse &amp; add to list</button>
           <button id="example-btn" class="ghost" type="button">Load example</button>
@@ -91,7 +92,7 @@
     </details>
   </section>
 
-  <!-- ========== MEDICATIONS — SIMPLE (cards) ========== -->
+  <!-- ========== MEDICATIONS · SIMPLE (cards) ========== -->
   <section class="card show-in-simple">
     <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
       <h2 style="margin:0">Medications</h2>
@@ -107,7 +108,7 @@
     <details id="ctx-details">
       <summary>
         <span class="ctx-summary-title">Patient context</span>
-        <span class="ctx-summary-hint">optional — tailors safety alerts</span>
+        <span class="ctx-summary-hint">optional, tailors safety alerts</span>
         <span class="ctx-active-chip" id="ctx-active-chip" hidden></span>
       </summary>
       <div class="ctx-body">
@@ -116,7 +117,7 @@
           <div class="field">
             <label for="ctx-age">Age</label>
             <select id="ctx-age">
-              <option value="unspecified">— Not specified —</option>
+              <option value="unspecified">(none specified)</option>
               <option value="under65">Under 65</option>
               <option value="65-74">65 – 74</option>
               <option value="75plus">75 or older</option>
@@ -125,7 +126,7 @@
           <div class="field">
             <label for="ctx-renal">Renal function</label>
             <select id="ctx-renal">
-              <option value="unspecified">— Not specified —</option>
+              <option value="unspecified">(none specified)</option>
               <option value="normal">Normal (CrCl ≥90)</option>
               <option value="mild">Mild (CrCl 60–89)</option>
               <option value="moderate">Moderate (CrCl 30–59)</option>
@@ -136,7 +137,7 @@
           <div class="field">
             <label for="ctx-hepatic">Hepatic function</label>
             <select id="ctx-hepatic">
-              <option value="unspecified">— Not specified —</option>
+              <option value="unspecified">(none specified)</option>
               <option value="normal">Normal</option>
               <option value="mild">Mild (Child-Pugh A)</option>
               <option value="moderate">Moderate (Child-Pugh B)</option>
@@ -152,7 +153,7 @@
     </details>
   </section>
 
-  <!-- ========== MEDICATIONS — COMPLEX (full table) ========== -->
+  <!-- ========== MEDICATIONS · COMPLEX (full table) ========== -->
   <section class="card show-in-complex">
     <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
       <h2 style="margin:0">Medications</h2>
@@ -269,6 +270,69 @@
         <p class="caveat"><strong>Caveats.</strong> Published equianalgesic ratios are estimates. Methadone conversions in opioid-tolerant patients should involve a pain or palliative specialist. Account for residual fentanyl release for 12&ndash;36 hours after patch removal and for any long-acting formulations. Use extra caution in elderly patients and in hepatic, renal, or pulmonary disease. This tool is not a substitute for clinical judgement.</p>
       </div>
     </details>
+  </section>
+
+  <!-- ========== ABOUT ========== -->
+  <section class="card about-card show-in-about">
+    <h2>About this calculator</h2>
+    <p class="about-lede">A bedside tool for converting any opioid regimen (scheduled, PRN, PCA,
+      transdermal) into a single daily morphine milligram equivalent (MME), with conversion to a
+      target opioid and CDC-aligned risk flags.</p>
+
+    <h3>How it works</h3>
+    <ol class="about-steps">
+      <li>
+        <strong>Add medications.</strong> Use <em>Simple</em> for a quick one-off conversion or
+        <em>Complex</em> to paste an MAR, add PCA settings, and choose a 24/48/72-hour window.
+        Each entry is stored as drug + route + dose; the math is re-derived on every change.
+      </li>
+      <li>
+        <strong>Per-medication MME.</strong> Daily dose is multiplied by the route-specific factor
+        from the active equianalgesic table (CDC 2022, GlobalRPh, or ASCO; switch in Settings).
+        Fentanyl IV uses mcg → MME directly; transdermal fentanyl uses mcg/hr × 24 × factor.
+      </li>
+      <li>
+        <strong>Methadone is tiered.</strong> The factor depends on the patient's total daily
+        methadone dose, per the selected table. The chosen tier and the daily dose that triggered
+        it are shown in the derivation panel for that row.
+      </li>
+      <li>
+        <strong>Total &amp; risk.</strong> Per-med MME values are summed into the daily total and
+        compared against CDC thresholds: under 50, 50–89 (caution), and ≥90 mg/day (high risk).
+        Patient context (age, renal, hepatic) only changes which safety alerts fire, never the math.
+      </li>
+      <li>
+        <strong>Convert &amp; export.</strong> Pick a target opioid and a cross-tolerance reduction
+        (0–50%) to see the suggested replacement dose. Use <em>Copy as note</em> for a plaintext
+        summary, <em>Copy shareable URL</em> for a link that re-creates the regimen, or
+        <em>Print</em> for a clean clinical handout.
+      </li>
+    </ol>
+
+    <h3>What it isn't</h3>
+    <p>
+      Equianalgesic ratios are population estimates, not prescriptions. Methadone rotations and
+      opioid-tolerant conversions warrant a pain or palliative consult. Account for residual
+      fentanyl release for 12–36 hours after patch removal and for the kinetics of any long-acting
+      formulation. This is decision support, not a substitute for clinical judgement.
+    </p>
+
+    <h3>Privacy</h3>
+    <p>
+      Fully client-side. No medication data leaves your device. Optional persistence uses this
+      browser's local storage only. Shareable URLs encode the regimen in the link's hash fragment,
+      which browsers never send to a server.
+    </p>
+
+    <h3>Source &amp; theming</h3>
+    <p>
+      Open source at <a href="https://github.com/robbie-med/Mme" target="_blank"
+      rel="noopener">github.com/robbie-med/Mme</a>. If you'd like to integrate this into a
+      hospital intranet or institutional site with your own colors, logo, and footer disclaimer,
+      get in touch at <a href="mailto:talk@robbiemed.org">talk@robbiemed.org</a>.
+    </p>
+
+    <p class="about-sdg" aria-label="Soli Deo Gloria">S.D.G.</p>
   </section>
 
   <!-- ========== SETTINGS ========== -->

@@ -50,7 +50,7 @@ function buildDerivation(r) {
       `<div>${formatDate(a.ts)} &middot; ${formatNum(a.dose)} ${a.unit}</div>`).join('');
     parts.push(`<div class="d-step"><span class="d-label">Doses in window</span><span class="d-value">${r.kept.length} dose${r.kept.length===1?'':'s'} · sum ${formatNum(r.totalDose)} ${u}<div class="d-admins">${adminLines}${r.kept.length>30?'<div>…</div>':''}</div></span></div>`);
   } else {
-    parts.push(`<div class="d-step"><span class="d-label">Doses in window</span><span class="d-value">0 — entry contributes 0 MME for this window</span></div>`);
+    parts.push(`<div class="d-step"><span class="d-label">Doses in window</span><span class="d-value">0; entry contributes 0 MME for this window</span></div>`);
   }
   if (r.spanHours != null && r.spanHours > 24 && r.normalizedDaily !== r.totalDose) {
     parts.push(`<div class="d-step"><span class="d-label">Normalized</span><span class="d-value">${formatNum(r.totalDose)} ${u} × 24 / ${r.spanHours.toFixed(1)} h = <strong>${formatNum(r.normalizedDaily)} ${u}/day</strong></span></div>`);
@@ -217,7 +217,7 @@ function renderWarnings(rows) {
   if (!el) return;
   const items = [];
   rows.forEach(r => {
-    if (r.mme == null) items.push(`No factor for ${DRUGS[r.entry.drug].label} (${r.entry.route}) — excluded from total.`);
+    if (r.mme == null) items.push(`No factor for ${DRUGS[r.entry.drug].label} (${r.entry.route}); excluded from total.`);
     if (r.entry.drug === 'methadone' && r.kept.length > 0) items.push('Methadone conversions are highly variable. Confirm dose with a pain or palliative specialist.');
     if (r.entry.drug === 'fentanyl' && r.entry.route === 'TD' && r.entry.source === 'parsed')
       items.push('Fentanyl patch dose treated as continuous mcg/hr (latest value in window).');

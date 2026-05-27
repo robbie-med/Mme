@@ -196,7 +196,7 @@ export function renderTaperText(schedule, drug) {
   if (!schedule || schedule.length === 0) return '';
   const u = unitFor(drug);
   const label = DRUGS[drug] ? DRUGS[drug].label : drug;
-  const lines = [`Taper schedule — ${label} (${u})`, ''];
+  const lines = [`Taper schedule: ${label} (${u})`, ''];
   schedule.forEach(s => {
     const doseStr = s.dose === 0 ? 'stop' : `${formatNum(s.dose)} ${u}`;
     lines.push(`  ${s.intervalLabel.padEnd(10)} ${doseStr.padEnd(14)} ${formatNum(s.mme).padStart(5)} MME (${formatNum(s.pctOfStart)}% of start)`);

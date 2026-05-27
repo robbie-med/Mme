@@ -76,7 +76,7 @@ export function addParsedOrders(orders) {
   orders.forEach(o => {
     ledger.push({
       id: nextId++, source: 'parsed', drug: o.drug, route: o.route,
-      label: `${formatNum(o.strength)} ${o.strengthUnit}${o.route !== 'TD' ? ` ${ROUTE_LABELS[o.route] || o.route}` : ' patch'} — ${o.admins.length} dose${o.admins.length === 1 ? '' : 's'} on file`,
+      label: `${formatNum(o.strength)} ${o.strengthUnit}${o.route !== 'TD' ? ` ${ROUTE_LABELS[o.route] || o.route}` : ' patch'} · ${o.admins.length} dose${o.admins.length === 1 ? '' : 's'} on file`,
       strengthUnit: o.strengthUnit, admins: o.admins,
     });
   });

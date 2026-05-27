@@ -46,11 +46,11 @@ export function buildConversionOrders(drugKey, route, dose, adjMME) {
     const per = roundSingleDose(dose / 3, drugKey);
     return {
       scheduled: [`${per} mg methadone PO TID (start low; titrate)`],
-      breakthrough: 'Use a separate short-acting opioid for breakthrough — do not PRN methadone.',
+      breakthrough: 'Use a separate short-acting opioid for breakthrough. Do not PRN methadone.',
       notes: [
         'Steady state takes 5–7 days; do not titrate faster than every ~5 days.',
         'Obtain baseline ECG; reassess QTc with dose changes or QT-prolonging drugs.',
-        'Highly variable kinetics — pain or palliative specialist input strongly advised.',
+        'Highly variable kinetics; pain or palliative specialist input strongly advised.',
       ],
       primary: { drug: 'methadone', route: 'PO', dose: per, perDay: 3 },
     };
@@ -65,7 +65,7 @@ export function buildConversionOrders(drugKey, route, dose, adjMME) {
       breakthrough: `~${btMg} mg morphine IR PO q4h PRN (or any equivalent short-acting opioid)`,
       notes: [
         'Opioid-tolerant patients only (≥60 MME for ≥1 week).',
-        'Onset 12–24 h after first patch — overlap with prior opioid initially.',
+        'Onset 12–24 h after first patch; overlap with prior opioid initially.',
         'Heat (fever, hot tub, heating pad) increases absorption and overdose risk.',
       ],
       primary: { drug: 'fentanyl', route: 'TD', dose: conservative, perDay: 1 },

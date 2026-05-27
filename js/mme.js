@@ -43,7 +43,7 @@ export function computeEntryMME(entry, windowHours, anchorTs) {
 }
 
 // MME for a hypothetical (drug, route, perDose, perDay) without touching the
-// ledger — used by the before/after preview.
+// ledger; used by the before/after preview.
 export function previewMME(drug, route, dose, perDay) {
   const isTD = drug === 'fentanyl' && route === 'TD';
   const dailyDose = isTD ? dose : dose * perDay;

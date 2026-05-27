@@ -2,8 +2,8 @@
 
 A single-page opioid Morphine Milligram Equivalent (MME) calculator. Total a
 patient's daily MME from any mix of home medications, inpatient PRNs, IV
-drips, PCAs, and pasted EHR administration records — then convert that total
-to an equivalent dose of a different opioid with suggested scheduled +
+drips, PCAs, and pasted EHR administration records, then convert that total
+to an equivalent dose of a different opioid with suggested scheduled and
 breakthrough orders, safety alerts, a before/after comparison, and a taper
 schedule.
 
@@ -11,8 +11,9 @@ Runs entirely in the browser. No backend. No build step. No data leaves the
 device. Works as a regular website and as an installable PWA you can use
 offline.
 
-**Live version:** enable GitHub Pages from `main` → root and visit
-`https://<your-user>.github.io/<repo>/`.
+![MME Calculator screenshot](screenshot.png)
+
+**Live version:** <https://robbie-med.github.io/Mme/>
 
 ---
 
@@ -23,8 +24,8 @@ primary care, addiction medicine) who need a fast, transparent scratch-pad
 for opioid math at the point of care:
 
 - "What's this patient's MME / day?"
-- "I need to switch from morphine PO to hydromorphone PO — what dose?"
-- "Help me write the actual order — scheduled + breakthrough."
+- "I need to switch from morphine PO to hydromorphone PO, what dose?"
+- "Help me write the actual order: scheduled plus breakthrough."
 - "Plan a taper down to ≤50% of current."
 - "What's my safety risk at this dose, and should I be co-prescribing naloxone?"
 
@@ -33,11 +34,11 @@ for opioid math at the point of care:
 ## Quick start
 
 1. Open the app (or install it as a PWA).
-2. **Simple view** — pick a drug, route, dose, doses-per-day → **+ Add**.
+2. **Simple view:** pick a drug, route, dose, doses-per-day → **+ Add**.
 3. Repeat for every opioid the patient is on.
 4. Read the running **MME / day** total and any safety alerts.
-5. (Optional) Pick a **target opioid** + cross-tolerance reduction → get an
-   equivalent dose, finishable scheduled + breakthrough orders, a
+5. (Optional) Pick a **target opioid** plus cross-tolerance reduction to get
+   an equivalent dose, finishable scheduled and breakthrough orders, a
    before/after comparison, and a taper plan.
 
 For complex cases (inpatient PRNs, IV drips, parsed MAR data, patient
@@ -47,26 +48,26 @@ context), switch to **Complex view**.
 
 ## Features
 
-### Two main views + Settings
+### Two main views plus Settings
 
-- **Simple** — streamlined cards for the everyday case: add a med, see MME,
+- **Simple:** streamlined cards for the everyday case. Add a med, see MME,
   convert if you want. No clutter.
-- **Complex** — paste-MAR box, Patient Context panel, time-window controls
+- **Complex:** paste-MAR box, Patient Context panel, time-window controls
   (last 24 / 48 / 72 h or all-normalized-to-24h), the full breakdown table
   with calculation columns, and a references panel.
-- **Settings** — default view on launch, persistence toggle, equianalgesic
+- **Settings:** default view on launch, persistence toggle, equianalgesic
   table picker (CDC 2022 / GlobalRPh / ASCO), install button, live
   online/offline cache status, and a confirm-gated Reset.
 
 ### Adding medications
 
-- **Quick-add form** with smart unit hints — fentanyl flips to mcg, the
+- **Quick-add form** with smart unit hints. Fentanyl flips to mcg, the
   transdermal field becomes Patch rate (mcg/hr), methadone surfaces its
   tiered-factor note.
-- **PCA mode** — toggle the Add form into a PCA layout for basal rate +
-  demand dose + lockout + avg demands/day. Effective daily dose is computed
-  and contributes to the same MME total.
-- **Paste MAR** (Complex view) — drop in raw EHR text. The parser handles
+- **PCA mode:** toggle the Add form into a PCA layout for basal rate,
+  demand dose, lockout, and avg demands/day. Effective daily dose is
+  computed and contributes to the same MME total.
+- **Paste MAR** (Complex view): drop in raw EHR text. The parser handles
   drug headers, brand names, tall-man lettering, multi-order blocks
   (`or`-prefixed and unprefixed strength changes), free-text PRN comments,
   and date / time / dose triplets.
@@ -74,13 +75,13 @@ context), switch to **Complex view**.
 ### MME totals & risk awareness
 
 - **Headline MME / day** updates live as you add or remove entries.
-- **CDC tiered risk badge** — Below threshold (<50), Caution (≥50), High
+- **CDC tiered risk badge:** Below threshold (<50), Caution (≥50), High
   risk (≥90), with the totals card tinted to match.
 - **Safety alerts** below the total: naloxone co-prescription prompt,
   high-risk review prompt, methadone-specific cautions (QTc, steady state,
   specialist), meperidine Beers Criteria, tramadol/codeine CYP2D6, fentanyl
   patch opioid-naïve contraindication. Each carries a citation pointer.
-- **Patient context amplifications** — age band, renal CrCl band, and
+- **Patient context amplifications:** age band, renal CrCl band, and
   hepatic Child-Pugh band trigger additional alerts (elderly + meperidine
   → Beers severe; CKD + morphine → M3G/M6G accumulation; severe hepatic +
   tramadol → avoid). Context never affects MME math.
@@ -99,10 +100,11 @@ context), switch to **Complex view**.
     hydromorphone, 5 mg for morphine, etc.).
   - Notes: steady-state and ECG for methadone, opioid-tolerance + heat
     hazard for fentanyl patch, chest-wall rigidity for fentanyl IV.
-- **Before/after comparison** — two-column current-vs-proposed view with
-  each side's total + risk-tier badge and a Δ from current. **Apply this
-  regimen** swaps the ledger to the proposed primary entry in one click.
-- **Taper-schedule generator** — stepwise reduction from the proposed
+- **Before/after comparison:** two-column current-vs-proposed view with
+  each side's total and risk-tier badge plus a Δ from current. **Apply
+  this regimen** swaps the ledger to the proposed primary entry in one
+  click.
+- **Taper-schedule generator:** stepwise reduction from the proposed
   regimen. Configurable reduction-per-step (10/15/25/50%), interval
   (weekly / fortnightly / monthly), and endpoint (≤50% of starting MME /
   ≤25% / stop). Each row shows the per-drug dose, MME, % of start, and
@@ -127,13 +129,13 @@ the active table.
 
 ### Share & export
 
-- **Copy URL** — encodes the regimen + target + reduction + view + non-
-  default table into the URL hash (via `history.replaceState`, so the
+- **Copy URL:** encodes the regimen, target, reduction, view, and any
+  non-default table into the URL hash (via `history.replaceState`, so the
   back button stays clean). Opening the URL restores the full state.
-- **Copy as note** — clean plaintext for a progress note: current regimen,
-  total with risk tier, target conversion + scheduled + breakthrough
+- **Copy as note:** clean plaintext for a progress note. Current regimen,
+  total with risk tier, target conversion plus scheduled and breakthrough
   orders, safety alerts with citations, table-name trailer, disclaimer.
-- **Print** — a dedicated `@media print` stylesheet hides chrome,
+- **Print:** a dedicated `@media print` stylesheet hides chrome,
   force-shows derivation panels, and strips colors.
 
 ### Persistence + PWA
@@ -152,7 +154,7 @@ the active table.
 ### Architecture
 
 Frontend-only. ES modules under `js/`, loaded as `<script type="module">`.
-No bundler — all imports resolve in the browser. `localStorage` for
+No bundler; all imports resolve in the browser. `localStorage` for
 persistence; a service worker for offline caching. The medication
 **ledger** is the single source of truth, and a small subscribe/notify
 pattern keeps render + hash sync in step without circular imports.
@@ -192,11 +194,11 @@ For each entry, `computeEntryMME`:
 #m=morphine|PO|30|1;oxycodone|PO|5|4&t=hydromorphone|PO&rx=25&v=complex&tbl=globalrph
 ```
 
-- `m=` — medications as `drug|route|dose|perDay`, semicolon-separated.
-- `t=` — target opioid as `drug|route`.
-- `rx=` — cross-tolerance reduction percent.
-- `v=` — current view (omitted when equal to the user's default).
-- `tbl=` — active equianalgesic table (omitted at the default, CDC).
+- `m=`: medications as `drug|route|dose|perDay`, semicolon-separated.
+- `t=`: target opioid as `drug|route`.
+- `rx=`: cross-tolerance reduction percent.
+- `v=`: current view (omitted when equal to the user's default).
+- `tbl=`: active equianalgesic table (omitted at the default, CDC).
 
 ---
 
@@ -229,7 +231,7 @@ Practical Pain Management** uses a 1:5 hydromorphone PO ratio
 | Fentanyl | IV / IM (per mcg) | 0.3 | 0.3 |
 | Fentanyl | Transdermal (per mcg/hr-day) | 2.4 | 2.4 |
 
-### Methadone PO — inbound (drug → MME)
+### Methadone PO, inbound (drug → MME)
 
 | Daily methadone dose | CDC 2022 | GlobalRPh | ASCO / Practical |
 |---|---|---|---|
@@ -238,7 +240,7 @@ Practical Pain Management** uses a 1:5 hydromorphone PO ratio
 | 41–60 mg/day | × 10 | × 7 | × 8 |
 | > 60 mg/day | × 12 | × 7 | × 12 (>90 mg) |
 
-### Methadone PO — outbound (MME → methadone, ratio)
+### Methadone PO, outbound (MME → methadone, ratio)
 
 | Total MME | CDC 2022 | GlobalRPh | ASCO / Practical |
 |---|---|---|---|

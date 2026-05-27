@@ -21,7 +21,7 @@ function addPatientContextAlerts(alerts, totalMME) {
   if (elderly && totalMME > 0) {
     alerts.push({
       severity: veryElderly ? 'severe' : 'normal',
-      title: `Older adult${veryElderly ? ' (≥75)' : ' (65–74)'} — start low, go slow`,
+      title: `Older adult${veryElderly ? ' (≥75)' : ' (65–74)'}: start low, go slow`,
       body: 'Older adults are more susceptible to opioid-induced sedation, confusion, constipation, and falls. Reduce initial doses ~25–50%, titrate slowly, and reassess function and cognition each visit.',
       cite: 'AGS Beers Criteria; CDC 2022.',
     });
@@ -29,7 +29,7 @@ function addPatientContextAlerts(alerts, totalMME) {
   if (elderly && has('meperidine')) {
     alerts.push({
       severity: 'severe',
-      title: 'Older adult + meperidine — Beers Criteria avoid',
+      title: 'Older adult + meperidine: Beers Criteria avoid',
       body: 'AGS Beers Criteria specifically recommend against meperidine in older adults due to neurotoxicity risk from normeperidine accumulation. Choose an alternative opioid.',
       cite: 'AGS Beers Criteria 2023.',
     });
@@ -39,7 +39,7 @@ function addPatientContextAlerts(alerts, totalMME) {
     if (has('meperidine')) {
       alerts.push({
         severity: 'severe',
-        title: 'Renal impairment + meperidine — avoid',
+        title: 'Renal impairment + meperidine: avoid',
         body: 'Normeperidine clearance is renal. Accumulation in CKD or dialysis causes CNS toxicity (myoclonus, seizures). Avoid in this patient.',
         cite: 'KDIGO; Meperidine PI.',
       });
@@ -47,7 +47,7 @@ function addPatientContextAlerts(alerts, totalMME) {
     if (has('morphine')) {
       alerts.push({
         severity: 'severe',
-        title: 'Renal impairment + morphine — accumulation risk',
+        title: 'Renal impairment + morphine: accumulation risk',
         body: 'M3G/M6G metabolites accumulate with reduced renal clearance and cause prolonged sedation and respiratory depression. Consider hydromorphone, fentanyl, methadone, or buprenorphine as renal-friendlier alternatives.',
         cite: 'KDIGO; UpToDate.',
       });
@@ -55,7 +55,7 @@ function addPatientContextAlerts(alerts, totalMME) {
     if (has('codeine')) {
       alerts.push({
         severity: 'severe',
-        title: 'Renal impairment + codeine — avoid',
+        title: 'Renal impairment + codeine: avoid',
         body: 'Codeine and its active metabolite morphine + M6G accumulate with reduced renal clearance. Choose an alternative.',
         cite: 'KDIGO.',
       });
@@ -63,7 +63,7 @@ function addPatientContextAlerts(alerts, totalMME) {
     if (has('tramadol')) {
       alerts.push({
         severity: 'normal',
-        title: 'Renal impairment + tramadol — reduce dose',
+        title: 'Renal impairment + tramadol: reduce dose',
         body: 'In CrCl <30 mL/min, max 200 mg/day; active metabolite accumulates. Consider 50% dose reduction and extending interval to q12h.',
         cite: 'Tramadol PI.',
       });
@@ -72,7 +72,7 @@ function addPatientContextAlerts(alerts, totalMME) {
   if (renalSevere && has('hydromorphone')) {
     alerts.push({
       severity: 'normal',
-      title: 'Severe renal impairment + hydromorphone — monitor',
+      title: 'Severe renal impairment + hydromorphone: monitor',
       body: 'H3G metabolite accumulates but is less neurotoxic than morphine’s M3G. Hydromorphone is generally preferred over morphine in CKD; still reduce dose and extend interval.',
       cite: 'KDIGO.',
     });
@@ -81,7 +81,7 @@ function addPatientContextAlerts(alerts, totalMME) {
   if (hepaticImpaired && totalMME > 0) {
     alerts.push({
       severity: hepaticSevere ? 'severe' : 'normal',
-      title: 'Hepatic impairment — reduce dose, prolonged half-life',
+      title: 'Hepatic impairment: reduce dose, prolonged half-life',
       body: 'Most opioids undergo hepatic metabolism. Moderate–severe impairment prolongs half-life and elevates plasma levels. Reduce initial doses (often ~50%) and extend dosing intervals.',
       cite: 'Drug-specific PIs.',
     });
@@ -91,7 +91,7 @@ function addPatientContextAlerts(alerts, totalMME) {
     if (hepAvoid.length) {
       alerts.push({
         severity: 'severe',
-        title: `Severe hepatic + ${hepAvoid.join(' / ')} — avoid`,
+        title: `Severe hepatic + ${hepAvoid.join(' / ')}: avoid`,
         body: 'These agents are contraindicated or strongly discouraged in severe hepatic impairment due to unpredictable kinetics (tramadol/tapentadol) or active-metabolite accumulation (meperidine).',
         cite: 'Tramadol/Tapentadol/Meperidine PIs.',
       });
@@ -112,7 +112,7 @@ export function buildSafetyAlerts(totalMME) {
   if (totalMME >= 90) {
     alerts.push({
       severity: 'severe',
-      title: 'High-risk dosing — careful review recommended',
+      title: 'High-risk dosing: careful review recommended',
       body: 'Doses ≥90 MME/day carry meaningfully higher overdose risk. Reassess goals of pain therapy, check the PMP/PDMP, screen for concurrent sedatives, and consider tapering, adjunctive non-opioid therapies, or specialist input.',
       cite: 'CDC 2022; SAMHSA',
     });
@@ -128,7 +128,7 @@ export function buildSafetyAlerts(totalMME) {
   if (ledger.some(e => e.drug === 'meperidine')) {
     alerts.push({
       severity: 'severe',
-      title: 'Meperidine — generally avoid',
+      title: 'Meperidine: generally avoid',
       body: 'The metabolite normeperidine accumulates with prolonged use or renal impairment and causes CNS toxicity (tremor, myoclonus, seizures). Most pain guidelines and the AGS Beers Criteria recommend against meperidine for routine analgesia, especially in older adults. Choose an alternative opioid.',
       cite: 'AGS Beers Criteria; ASPMN; APS',
     });
@@ -136,7 +136,7 @@ export function buildSafetyAlerts(totalMME) {
   if (ledger.some(e => e.drug === 'tramadol')) {
     alerts.push({
       severity: 'normal',
-      title: 'Tramadol — interaction & seizure cautions',
+      title: 'Tramadol: interaction & seizure cautions',
       body: 'Lowers seizure threshold and can precipitate serotonin syndrome with SSRIs/SNRIs/MAOIs/triptans/linezolid. Analgesic effect depends on CYP2D6 metabolism; ultra-rapid metabolizers and children are at higher risk for sedation/respiratory depression.',
       cite: 'Tramadol PI; FDA Drug Safety Communications',
     });
@@ -144,7 +144,7 @@ export function buildSafetyAlerts(totalMME) {
   if (ledger.some(e => e.drug === 'codeine')) {
     alerts.push({
       severity: 'normal',
-      title: 'Codeine — CYP2D6-dependent, avoid in children',
+      title: 'Codeine: CYP2D6-dependent, avoid in children',
       body: 'Variable CYP2D6 conversion to morphine makes effect unpredictable; ultra-rapid metabolizers are at risk for opioid toxicity. Contraindicated post-tonsillectomy/adenoidectomy in children and in breastfeeding mothers.',
       cite: 'FDA Boxed Warning (2017)',
     });
@@ -152,7 +152,7 @@ export function buildSafetyAlerts(totalMME) {
   if (ledger.some(e => e.drug === 'fentanyl' && e.route === 'TD')) {
     alerts.push({
       severity: 'normal',
-      title: 'Fentanyl patch — opioid-naïve contraindication',
+      title: 'Fentanyl patch: opioid-naïve contraindication',
       body: 'Transdermal fentanyl is only for opioid-tolerant patients (≥60 mg/day oral morphine equivalent for ≥1 week). Heat (fever, heating pad, hot tub) increases absorption and overdose risk. Residual release continues 12–24 hours after patch removal.',
       cite: 'Duragesic PI',
     });

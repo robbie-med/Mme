@@ -71,7 +71,7 @@ export function parseMAR(text) {
       const tm = dm && matchTimeLine(lines[i + 1]);
       const ddm = tm && matchDoseLine(lines[i + 2]);
       if (dm && tm && ddm) {
-        if (!currentOrder) { warnings.push('Dose history without a preceding order — skipping.'); i += 3; continue; }
+        if (!currentOrder) { warnings.push('Dose history without a preceding order; skipping.'); i += 3; continue; }
         currentOrder.admins.push({ date: lines[i], time: lines[i + 1], dose: parseFloat(ddm[1]), unit: ddm[2].toLowerCase(), ts: parseTimestamp(lines[i], lines[i + 1]) });
         i += 3; continue;
       }

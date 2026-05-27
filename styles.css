@@ -1,42 +1,55 @@
 :root {
-  /* Neutral surface system — calm, restrained, clinical */
-  --bg: #f6f7f9;
-  --card: #ffffff;
-  --surface-1: #f4f6f8;     /* derivation panels, table headers — single gray */
-  --surface-2: #eef1f4;     /* hover states, slightly deeper neutral */
-  --border: #e2e6ea;
-  --border-strong: #cbd2da;
-  --text: #1b2530;
-  --muted: #5b6776;
-  --muted-2: #8590a0;
+  /* Warm paper system. Goal: a calm, low-glare clinical notebook;
+     cream page, lighter cream cards, warm ink. Reduces the blue-screen
+     eyestrain of pure-white surfaces without losing scan-readability. */
+  --bg: #ede6d4;            /* warm linen page */
+  --card: #f7f2e6;           /* lifted cream for cards / inputs */
+  --surface-1: #e8dfc6;      /* warm sand: derivation panels, table head */
+  --surface-2: #ddd3b6;      /* hover, slightly deeper sand */
+  --border: #cfc4a8;         /* warm border */
+  --border-strong: #aba087;
+  --text: #2d271c;           /* warm dark ink (no blue cast) */
+  --muted: #6a6051;
+  --muted-2: #8b8170;
 
-  /* One accent — slate-blue, less saturated than the old royal blue */
-  --accent: #2c5fa3;
-  --accent-dark: #1f4680;
-  --accent-soft: #eaf0f8;
-  --focus-ring: 0 0 0 3px rgba(44, 95, 163, 0.35);
+  /* Single accent: restrained slate-teal. Sits quietly on cream and
+     still reads as "action" against the warm field. */
+  --accent: #335963;
+  --accent-dark: #223e47;
+  --accent-soft: #e1e9e8;
+  --focus-ring: 0 0 0 3px rgba(51, 89, 99, 0.28);
 
-  /* Risk tiers — muted, distinguishable by hue not saturation */
-  --risk-low-bg: #eef5f0;
-  --risk-low-fg: #2f6b4b;
-  --risk-low-border: #c5dccf;
-  --risk-caution-bg: #fdf6e7;
-  --risk-caution-fg: #8a5a13;
-  --risk-caution-border: #ead9b3;
-  --risk-high-bg: #f9ecec;
-  --risk-high-fg: #94322d;
-  --risk-high-border: #e6c4c2;
+  /* Risk tiers: desaturated so the page feels calm; the dot+label
+     pattern still distinguishes them at a glance. */
+  --risk-low-bg: #e6ecd9;
+  --risk-low-fg: #4c6437;
+  --risk-low-border: #c5d2a8;
+  --risk-caution-bg: #f3e7c5;
+  --risk-caution-fg: #7a5417;
+  --risk-caution-border: #ddc797;
+  --risk-high-bg: #ebd5cd;
+  --risk-high-fg: #823028;
+  --risk-high-border: #d4b1a4;
 
-  --good: #2f6b4b;
+  --good: #4c6437;
   --warn-bg: var(--risk-caution-bg);
   --warn-border: var(--risk-caution-border);
   --warn-text: var(--risk-caution-fg);
   --code-bg: var(--surface-1);
-  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 1px rgba(15, 23, 42, 0.03);
-  --shadow-elev: 0 2px 8px rgba(15, 23, 42, 0.06);
+
+  /* Warm-tinted shadows; the cool blue-grey shadow of the old palette
+     reads as "screen", not "paper". These tint toward umber. */
+  --shadow: 0 1px 2px rgba(60, 40, 20, 0.06), 0 1px 1px rgba(60, 40, 20, 0.04);
+  --shadow-elev: 0 2px 10px rgba(60, 40, 20, 0.08);
+
+  /* Display serif for the human-voiced headings only (h1, card h2,
+     about copy). Body, tables, and numerals stay system-sans so data
+     scanning isn't compromised. */
+  --font-display: "Iowan Old Style", "Palatino", "Hoefler Text", "Charter", Georgia, "Times New Roman", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* Tabular numerals everywhere a number lives — clinical scanning */
+/* Tabular numerals everywhere a number lives: clinical scanning */
 .totals .value, .mme, .num, td.num, .t-mme, .cmp-mme, .cmp-total strong,
 .simple-med-mme, .conversion-result .target-dose, .taper-table td.num,
 input[type="number"] { font-variant-numeric: tabular-nums; }
@@ -46,11 +59,17 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 html, body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-sans);
   font-size: 15px;
   color: var(--text);
   background: var(--bg);
-  line-height: 1.45;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Tint native controls (radios, checkboxes, progress) with the accent
+     so they don't fall back to a clashing browser-default blue. */
+  accent-color: var(--accent);
 }
 
 header {
@@ -62,17 +81,20 @@ header {
 
 header h1 {
   margin: 0;
-  font-size: 22px;
+  font-family: var(--font-display);
+  font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
   color: var(--text);
 }
 
 header .subtitle {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: var(--muted);
   font-size: 13px;
   font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.01em;
 }
 
 main {
@@ -97,7 +119,10 @@ main {
 
 .card h2 {
   margin: 0 0 12px;
-  font-size: 17px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
   color: var(--text);
 }
 
@@ -145,8 +170,8 @@ textarea {
 textarea:focus {
   outline: none;
   border-color: var(--accent);
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  background: var(--card);
+  box-shadow: var(--focus-ring);
 }
 
 .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
@@ -158,7 +183,7 @@ textarea:focus {
   padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--card);
   font-size: 14px;
   min-width: 160px;
   max-width: 100%;
@@ -185,7 +210,7 @@ button.primary {
 button.primary:hover { background: var(--accent-dark); }
 
 button.ghost {
-  background: #fff;
+  background: var(--card);
   border-color: var(--border);
   color: var(--text);
 }
@@ -200,7 +225,7 @@ button.icon-btn {
 }
 button.icon-btn:hover { color: var(--risk-high-fg); }
 
-/* Visible keyboard focus across all interactive controls — clinical apps
+/* Visible keyboard focus across all interactive controls; clinical apps
    are often keyboard-driven; default browser outlines aren't enough. */
 :focus { outline: none; }
 button:focus-visible,
@@ -229,10 +254,10 @@ textarea:focus-visible {
   /* CSS scroll-shadow: pinned white edges hide the gradient when scrolled
      to the start/end; the gradients show when there's content offscreen. */
   background:
-    linear-gradient(to right, var(--card) 30%, rgba(255,255,255,0)) left center,
-    linear-gradient(to left,  var(--card) 30%, rgba(255,255,255,0)) right center,
-    radial-gradient(farthest-side at 0 50%, rgba(15,23,42,0.10), rgba(15,23,42,0)) left center,
-    radial-gradient(farthest-side at 100% 50%, rgba(15,23,42,0.10), rgba(15,23,42,0)) right center;
+    linear-gradient(to right, var(--card) 30%, rgba(247,242,230,0)) left center,
+    linear-gradient(to left,  var(--card) 30%, rgba(247,242,230,0)) right center,
+    radial-gradient(farthest-side at 0 50%, rgba(60,40,20,0.10), rgba(60,40,20,0)) left center,
+    radial-gradient(farthest-side at 100% 50%, rgba(60,40,20,0.10), rgba(60,40,20,0)) right center;
   background-repeat: no-repeat;
   background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
   background-attachment: local, local, scroll, scroll;
@@ -240,10 +265,10 @@ textarea:focus-visible {
 .taper-output {
   overflow-x: auto;
   background:
-    linear-gradient(to right, var(--card) 30%, rgba(255,255,255,0)) left center,
-    linear-gradient(to left,  var(--card) 30%, rgba(255,255,255,0)) right center,
-    radial-gradient(farthest-side at 0 50%, rgba(15,23,42,0.10), rgba(15,23,42,0)) left center,
-    radial-gradient(farthest-side at 100% 50%, rgba(15,23,42,0.10), rgba(15,23,42,0)) right center;
+    linear-gradient(to right, var(--card) 30%, rgba(247,242,230,0)) left center,
+    linear-gradient(to left,  var(--card) 30%, rgba(247,242,230,0)) right center,
+    radial-gradient(farthest-side at 0 50%, rgba(60,40,20,0.10), rgba(60,40,20,0)) left center,
+    radial-gradient(farthest-side at 100% 50%, rgba(60,40,20,0.10), rgba(60,40,20,0)) right center;
   background-repeat: no-repeat;
   background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
   background-attachment: local, local, scroll, scroll;
@@ -357,13 +382,13 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
   font: inherit;
   color: inherit;
   padding: 0;
-  text-decoration: underline dotted rgba(37, 99, 235, 0.35);
+  text-decoration: underline dotted var(--border-strong);
   text-underline-offset: 3px;
 }
 .mme-clickable:hover { color: var(--accent-dark); text-decoration-color: var(--accent-dark); }
 .totals .value-row .value.clickable, #total-value-wrap.clickable {
   cursor: pointer;
-  text-decoration: underline dotted rgba(37, 99, 235, 0.25);
+  text-decoration: underline dotted var(--border-strong);
   text-underline-offset: 5px;
 }
 #total-value-wrap.clickable:hover { color: var(--accent-dark); }
@@ -564,7 +589,7 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
   align-items: stretch;
 }
 .cmp-side {
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 14px;
@@ -607,7 +632,7 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
 .cmp-total { font-size: 15px; color: var(--text); }
 .cmp-total strong { font-size: 20px; font-weight: 700; color: var(--accent-dark); }
 .cmp-delta-down { color: var(--good); font-weight: 600; font-size: 13px; }
-.cmp-delta-up   { color: #b91c1c;     font-weight: 600; font-size: 13px; }
+.cmp-delta-up   { color: var(--risk-high-fg); font-weight: 600; font-size: 13px; }
 .cmp-arrow {
   align-self: center;
   font-size: 28px;
@@ -670,7 +695,7 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
-  background: #fff;
+  background: var(--card);
   text-transform: none;
 }
 .taper-controls button { align-self: end; }
@@ -696,7 +721,7 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
   gap: 4px;
   margin-bottom: 18px;
   border-bottom: 1px solid var(--border);
-  background: #fff;
+  background: var(--card);
   border-radius: 8px 8px 0 0;
   padding: 4px 6px 0;
   box-shadow: var(--shadow);
@@ -719,7 +744,7 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
 }
 .view-tab-end { margin-left: auto; }
 
-/* View visibility — default-hide, then positively show in the views each
+/* View visibility: default-hide, then positively show in the views each
  * element declares. Elements that carry multiple show-in-* classes (e.g.
  * the Add card with `show-in-simple show-in-complex`) match at least one
  * "show" rule in every view they belong to, so they render correctly.
@@ -727,10 +752,12 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
  * is (block for <section>, etc.). */
 .show-in-simple,
 .show-in-complex,
+.show-in-about,
 .show-in-settings { display: none; }
 
 body.view-simple   .show-in-simple,
 body.view-complex  .show-in-complex,
+body.view-about    .show-in-about,
 body.view-settings .show-in-settings { display: revert; }
 
 /* Simple medication cards */
@@ -742,7 +769,7 @@ body.view-settings .show-in-settings { display: revert; }
   border: 1px solid var(--border);
   border-radius: 6px;
   margin-bottom: 8px;
-  background: #fff;
+  background: var(--card);
 }
 .simple-med-row {
   display: grid;
@@ -825,7 +852,7 @@ body.view-settings .show-in-settings { display: revert; }
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
-  background: #fff;
+  background: var(--card);
 }
 .ctx-actions button { width: 100%; }
 @media (max-width: 720px) {
@@ -847,7 +874,7 @@ body.view-settings .show-in-settings { display: revert; }
   letter-spacing: 0.04em;
   margin-bottom: 6px;
 }
-.setting select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; min-width: 200px; font-size: 14px; background: #fff; }
+.setting select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; min-width: 200px; font-size: 14px; background: var(--card); }
 .setting .check-label {
   display: flex;
   align-items: center;
@@ -860,6 +887,51 @@ body.view-settings .show-in-settings { display: revert; }
 }
 .setting .check-label input { transform: scale(1.15); }
 .privacy { color: var(--muted); font-style: italic; font-size: 13px; }
+
+/* About pane: long-form explanatory copy on warm paper. Display serif
+ * for the section heads echoes the header; sans body keeps the copy
+ * easy to skim. Line length capped at ~64ch for readability. */
+.about-card h3 {
+  margin: 24px 0 8px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.about-card p,
+.about-card li {
+  max-width: 64ch;
+  line-height: 1.6;
+  color: var(--text);
+}
+.about-card .about-lede {
+  font-size: 15.5px;
+  color: var(--muted);
+  margin: 8px 0 4px;
+  font-style: italic;
+  max-width: 60ch;
+}
+.about-steps {
+  padding-left: 20px;
+  margin: 4px 0 4px;
+}
+.about-steps li { margin-bottom: 12px; }
+.about-steps li strong { color: var(--text); }
+.about-card em { font-style: italic; color: var(--text); }
+.about-sdg {
+  margin: 32px 0 4px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.5em;
+  font-variant: small-caps;
+  color: var(--muted);
+  opacity: 0.7;
+  font-style: italic;
+}
 
 .add-mode-row {
   display: flex;
@@ -910,7 +982,7 @@ body.view-settings .show-in-settings { display: revert; }
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
-  background: #fff;
+  background: var(--card);
 }
 .add-form .add-actions button { width: 100%; }
 .unit-hint { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
@@ -948,13 +1020,13 @@ body.view-settings .show-in-settings { display: revert; }
 .remove-btn {
   background: transparent;
   border: 1px solid transparent;
-  color: #b91c1c;
+  color: var(--risk-high-fg);
   padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
 }
-.remove-btn:hover { background: #fef2f2; border-color: #fecaca; }
+.remove-btn:hover { background: var(--risk-high-bg); border-color: var(--risk-high-border); }
 
 .refs details summary {
   cursor: pointer;
@@ -995,7 +1067,7 @@ body.view-settings .show-in-settings { display: revert; }
 .export-row button { font-size: 13px; padding: 6px 12px; }
 .export-row button:disabled { opacity: 0.7; cursor: default; }
 
-/* Print stylesheet — clean summary, no chrome */
+/* Print stylesheet: clean summary, no chrome */
 @media print {
   body { background: #fff; color: #000; }
   header { background: #fff !important; color: #000 !important; padding: 0 0 12px; border-bottom: 1px solid #000; }
@@ -1005,7 +1077,8 @@ body.view-settings .show-in-settings { display: revert; }
   .view-tabs, .no-print, .paste-details, .ghost, .primary, .remove-btn, .mme-clickable {
     display: none !important;
   }
-  .show-in-settings { display: none !important; }
+  .show-in-settings,
+  .show-in-about { display: none !important; }
   .card { border: none; box-shadow: none; padding: 6px 0; margin: 0; page-break-inside: avoid; background: #fff !important; }
   .card.totals { border-top: 1px solid #444; padding-top: 10px; margin-top: 10px; }
   .totals .big-number .value { font-size: 22px; color: #000 !important; }
