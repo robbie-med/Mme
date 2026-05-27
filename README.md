@@ -45,6 +45,28 @@ total to an equivalent dose of a different opioid.
   fire for methadone (5–7 day steady state, ECG, specialist input), fentanyl
   patch (opioid-tolerant only, heat hazard, 12–24 h onset), and fentanyl IV
   (chest-wall rigidity at higher boluses).
+- **Alternative equianalgesic tables.** Settings dropdown switches between
+  CDC 2022 (default), GlobalRPh, and ASCO / Practical Pain Management. Each
+  table has its own factors, methadone tier breakpoints, and citation, which
+  flows into derivations, conversions, and the EHR-note exporter.
+- **Patient context (optional).** A collapsible card in Complex view accepts
+  age band / renal CrCl band / hepatic Child-Pugh band and surfaces tailored
+  alerts (Beers Criteria for elderly + meperidine, M3G/M6G accumulation for
+  CKD + morphine, dose-reduction for hepatic impairment, etc.). Never affects
+  MME math.
+- **PCA basal + demand mode.** Toggle the Add form into PCA mode for
+  basal-rate + demand-dose entries; effective daily dose is computed and
+  contributes to the same MME total. Per-drug units flip to mcg for fentanyl.
+- **Before/after comparison.** Once a target is picked the conversion section
+  renders a two-column current-vs-proposed view with each side's total + risk
+  tier and a Δ from current. "Apply this regimen" swaps the ledger to the
+  proposed primary entry in one click.
+- **Taper-schedule generator.** Plan a stepwise reduction from the proposed
+  regimen with configurable reduction-per-step, interval (weekly / fortnightly
+  / monthly), and endpoint (≤50% of starting MME, ≤25%, or stop). Each row
+  shows the per-drug dose, MME, % of start, and the CDC risk tier the patient
+  has crossed into. Copy-to-clipboard yields a plaintext schedule with a
+  reassessment reminder.
 - **Risk-aware totals.** The headline MME is color-tiered using the CDC
   cutoffs (≥50 MME → Caution + naloxone prompt; ≥90 MME → High risk +
   PMP/PDMP review prompt). Drug-specific cautions appear for methadone,
@@ -120,7 +142,24 @@ the repo root with relative paths.
 
 - `index.html` — UI structure
 - `styles.css` — styling
-- `app.js` — drug catalog, MAR parser, MME engine, ledger, rendering
+- `service-worker.js`, `manifest.webmanifest`, icons — PWA shell
+- `js/` — ES-module sources (no build step). Each module owns one concern:
+  - `main.js` — entry point, init, event wiring
+  - `drugs.js` — drug catalog + brand aliases + route labels
+  - `tables.js` — CDC / GlobalRPh / ASCO factor tables + methadone tiers
+  - `settings.js` — settings + patient context + localStorage
+  - `ledger.js` — medication ledger, mutations, persistence, subscribe hook
+  - `mar-parser.js` — EHR paste parser
+  - `mme.js` — MME math, window filter, formatters, preview
+  - `safety.js` — risk tiers + drug-specific + context-driven alerts
+  - `conversion.js` — target dose, suggested orders, before/after, apply
+  - `taper.js` — taper-schedule generator
+  - `render.js` — DOM rendering + derivation panels + citations
+  - `views.js` — view state + tab switching
+  - `form.js` — quick-add form + PCA mode + patient-context wiring
+  - `share.js` — URL hash, copy URL / note, print, clipboard
+  - `pwa.js` — install prompt + offline status
+  - `util.js` — small shared helpers
 
 ## Disclaimer
 
