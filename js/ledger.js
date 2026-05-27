@@ -48,6 +48,30 @@ export function addManualEntry({ drug, route, dose, perDay }) {
   notify();
 }
 
+// PCA = patient-controlled analgesia: basal infusion + demand boluses.
+// Effective daily dose = basal × 24 + demand × average demands/day.
+// Stored as a normal ledger entry whose admins carries the effective daily,
+// plus _basal/_demand/_demands/_lockout fields so the label and any future
+// export-as-PCA-order can reconstruct the breakdown.
+export function addPCAEntry({ drug, route, basal, demand, demands, lockout }) {
+  const u = drugUnit(drug);
+  const effDaily = (basal || 0) * 24 + (demand || 0) * (demands || 0);
+  const ts = Date.now();
+  const lockoutTxt = (lockout != null && lockout > 0) ? ` q${lockout}min` : '';
+  const label = `PCA: ${formatNum(basal)} ${u}/hr basal + ${formatNum(demand)} ${u}${lockoutTxt} demand (avg ${formatNum(demands)}/day) → ${formatNum(effDaily)} ${u}/day`;
+  ledger.push({
+    id: nextId++, source: 'pca', drug, route, label, strengthUnit: u,
+    admins: [{ date: '', time: '', dose: effDaily, unit: u, ts }],
+    _mode: 'pca',
+    _basal: basal, _demand: demand, _demands: demands, _lockout: lockout,
+    // Keep a derived _dose/_perDay so hash + computeEntryMME treat it like a
+    // manual entry with daily total. The breakdown survives via _basal etc.
+    _dose: effDaily, _perDay: 1,
+  });
+  saveLedger();
+  notify();
+}
+
 export function addParsedOrders(orders) {
   orders.forEach(o => {
     ledger.push({

@@ -32,7 +32,12 @@
   <section class="card show-in-simple show-in-complex">
     <h2>Add medication</h2>
     <p class="hint">Enter one med at a time. Repeat for every opioid the patient is on — they all add up below.</p>
-    <div class="add-form">
+    <div class="add-mode-row">
+      <span class="add-mode-label">Mode:</span>
+      <label class="add-mode-opt"><input type="radio" name="add-mode" value="scheduled" checked> Scheduled / PRN</label>
+      <label class="add-mode-opt"><input type="radio" name="add-mode" value="pca"> PCA (basal + demand)</label>
+    </div>
+    <div class="add-form" data-mode="scheduled">
       <div class="field">
         <label>Drug</label>
         <select id="add-drug"></select>
@@ -41,13 +46,29 @@
         <label>Route</label>
         <select id="add-route"></select>
       </div>
-      <div class="field">
+      <div class="field field-scheduled">
         <label id="dose-label">Dose <span class="unit-hint" id="dose-unit-hint">(mg)</span></label>
         <input id="add-dose" type="number" step="any" min="0" placeholder="e.g. 5">
       </div>
-      <div class="field" id="freq-field">
+      <div class="field field-scheduled" id="freq-field">
         <label id="freq-label">Doses per day</label>
         <input id="add-freq" type="number" step="any" min="0" value="1">
+      </div>
+      <div class="field field-pca">
+        <label>Basal <span class="unit-hint" id="pca-basal-unit">(mg/hr)</span></label>
+        <input id="pca-basal" type="number" step="any" min="0" placeholder="e.g. 0.2">
+      </div>
+      <div class="field field-pca">
+        <label>Demand <span class="unit-hint" id="pca-demand-unit">(mg)</span></label>
+        <input id="pca-demand" type="number" step="any" min="0" placeholder="e.g. 0.2">
+      </div>
+      <div class="field field-pca">
+        <label>Demands/day</label>
+        <input id="pca-demands" type="number" step="any" min="0" value="6" placeholder="avg PRN">
+      </div>
+      <div class="field field-pca">
+        <label>Lockout (min)</label>
+        <input id="pca-lockout" type="number" step="1" min="0" value="10">
       </div>
       <div class="field add-actions">
         <label>&nbsp;</label>

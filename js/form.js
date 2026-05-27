@@ -1,7 +1,7 @@
 // Quick-add medication form + patient-context dropdown wiring.
 import { DRUGS, ROUTE_LABELS, drugUnit } from './drugs.js';
 import { getRoutesForDrug } from './tables.js';
-import { addManualEntry } from './ledger.js';
+import { addManualEntry, addPCAEntry } from './ledger.js';
 import {
   patientContext, isContextActive, clearPatientContext, saveContext,
 } from './settings.js';
@@ -31,6 +31,13 @@ export function updateDoseLabels() {
   const freqInput = document.getElementById('add-freq');
   const help = document.getElementById('add-help');
   const u = drugUnit(drug);
+
+  // Update the PCA unit hints too — they share the per-drug unit.
+  const pcaBasalUnit = document.getElementById('pca-basal-unit');
+  const pcaDemandUnit = document.getElementById('pca-demand-unit');
+  if (pcaBasalUnit)  pcaBasalUnit.textContent  = `(${u}/hr)`;
+  if (pcaDemandUnit) pcaDemandUnit.textContent = `(${u})`;
+
   if (drug === 'fentanyl' && route === 'TD') {
     doseLabel.firstChild.textContent = 'Patch rate ';
     doseUnitHint.textContent = '(mcg/hr)';
@@ -54,13 +61,45 @@ export function updateDoseLabels() {
   }
 }
 
+export function getAddMode() {
+  const checked = document.querySelector('input[name="add-mode"]:checked');
+  return checked ? checked.value : 'scheduled';
+}
+
+export function applyAddMode() {
+  const mode = getAddMode();
+  const form = document.querySelector('.add-form');
+  if (form) form.setAttribute('data-mode', mode);
+}
+
 export function handleAdd() {
   const drug = document.getElementById('add-drug').value;
   const route = document.getElementById('add-route').value;
+  if (!route) { flashHelp('Select a route.'); return; }
+  const mode = getAddMode();
+  if (mode === 'pca') {
+    const basal   = parseFloat(document.getElementById('pca-basal').value);
+    const demand  = parseFloat(document.getElementById('pca-demand').value);
+    const demands = parseFloat(document.getElementById('pca-demands').value);
+    const lockout = parseFloat(document.getElementById('pca-lockout').value) || 0;
+    const basalOK   = isFinite(basal)   && basal   >= 0;
+    const demandOK  = isFinite(demand)  && demand  >= 0;
+    const demandsOK = isFinite(demands) && demands >= 0;
+    if (!(basalOK && demandOK && demandsOK)) {
+      flashHelp('Enter non-negative basal, demand, and demands/day.'); return;
+    }
+    if (basal === 0 && demand === 0) {
+      flashHelp('Either basal or demand must be greater than 0.'); return;
+    }
+    addPCAEntry({ drug, route, basal, demand, demands, lockout });
+    document.getElementById('pca-basal').value = '';
+    document.getElementById('pca-demand').value = '';
+    document.getElementById('pca-basal').focus();
+    return;
+  }
   const dose = parseFloat(document.getElementById('add-dose').value);
   const perDay = parseFloat(document.getElementById('add-freq').value) || 1;
   if (!isFinite(dose) || dose <= 0) { flashHelp('Enter a dose greater than 0.'); return; }
-  if (!route) { flashHelp('Select a route.'); return; }
   addManualEntry({ drug, route, dose, perDay });
   document.getElementById('add-dose').value = '';
   document.getElementById('add-dose').focus();

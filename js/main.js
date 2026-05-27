@@ -20,6 +20,7 @@ import { render } from './render.js';
 import {
   populateDrugSelect, updateRouteOptions, updateDoseLabels,
   handleAdd, flashHelp, applyContextToUI, wirePatientContext,
+  applyAddMode,
 } from './form.js';
 import { syncHash, loadFromHash, wireExport } from './share.js';
 import { wirePWA } from './pwa.js';
@@ -130,6 +131,14 @@ function init() {
   document.getElementById('add-btn').addEventListener('click', handleAdd);
   document.getElementById('add-dose').addEventListener('keydown', e => { if (e.key === 'Enter') handleAdd(); });
   document.getElementById('add-freq').addEventListener('keydown', e => { if (e.key === 'Enter') handleAdd(); });
+  // PCA-mode toggle + Enter-to-submit in PCA fields
+  document.querySelectorAll('input[name="add-mode"]').forEach(r =>
+    r.addEventListener('change', applyAddMode));
+  ['pca-basal', 'pca-demand', 'pca-demands', 'pca-lockout'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') handleAdd(); });
+  });
+  applyAddMode();
 
   // Paste MAR
   document.getElementById('parse-btn').addEventListener('click', () => {

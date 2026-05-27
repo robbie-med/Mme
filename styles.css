@@ -698,6 +698,19 @@ body.view-settings .show-in-settings { display: revert; }
 .setting .check-label input { transform: scale(1.15); }
 .privacy { color: var(--muted); font-style: italic; font-size: 13px; }
 
+.add-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+.add-mode-label { font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
+.add-mode-opt { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-weight: 500; cursor: pointer; }
+.add-mode-opt input { cursor: pointer; }
+
 .add-form {
   display: grid;
   grid-template-columns: 1.8fr 1.2fr 1.2fr 1fr auto;
@@ -705,6 +718,11 @@ body.view-settings .show-in-settings { display: revert; }
   align-items: end;
   margin-bottom: 4px;
 }
+.add-form[data-mode="pca"] {
+  grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr 1fr auto;
+}
+.add-form[data-mode="scheduled"] .field-pca { display: none; }
+.add-form[data-mode="pca"] .field-scheduled { display: none; }
 .add-form .field { display: flex; flex-direction: column; }
 .add-form label {
   margin: 0 0 4px;
