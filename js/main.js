@@ -24,6 +24,7 @@ import {
 } from './form.js';
 import { syncHash, loadFromHash, wireExport } from './share.js';
 import { wirePWA } from './pwa.js';
+import { wireTimeline, renderTimeline } from './timeline.js';
 
 const EXAMPLE = `HYDROmorphone (Dilaudid inj)
 0.5 mg, 0.25 mL, IV, q3 hr, PRN: Moderate to Severe Pain
@@ -173,11 +174,14 @@ function init() {
   wirePatientContext(() => { /* render triggers via context save; explicit call below */ render(); });
   wirePWA();
   wireExport();
+  wireTimeline();
 
   // Ledger/view changes -> render + hash sync
   onLedgerChange(syncHash);
   onLedgerChange(render);
+  onLedgerChange(renderTimeline);
   onViewChange(render);
+  onViewChange(renderTimeline);
 
   // URL hash takes priority for the initial state.
   let initialView = settings.defaultView;

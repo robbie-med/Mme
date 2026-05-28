@@ -84,6 +84,41 @@ export function addParsedOrders(orders) {
   notify();
 }
 
+// Edit a single admin's timestamp. Parsed-MAR entries already have one admin
+// per real dose, so this just rewrites that admin's ts. Manual / PCA entries
+// store a single admin holding the daily total; the first edit "materialises"
+// the synthetic schedule into N per-dose admins (per perDay) so subsequent
+// edits address discrete doses. Once materialised the entry is marked
+// _timesSet so collectDoses stops re-synthesising it.
+export function setAdminTime(entryId, adminIdx, newTs) {
+  const entry = ledger.find(e => e.id === entryId);
+  if (!entry || !Number.isFinite(newTs)) return;
+  if (entry.source !== 'parsed' && !entry._timesSet) {
+    if (entry.drug === 'fentanyl' && entry.route === 'TD') {
+      // Single-admin patch: just mark; the existing admin holds the rate.
+      entry._timesSet = true;
+    } else {
+      const perDay = Math.max(1, Math.round(entry._perDay || entry._demands || 1));
+      const perDose = entry._dose != null
+        ? entry._dose
+        : (entry.admins[0] ? entry.admins[0].dose / perDay : 0);
+      const u = entry.admins[0] ? entry.admins[0].unit : (entry.strengthUnit || 'mg');
+      const intervalMs = (24 * 3600 * 1000) / perDay;
+      const last = Date.now() - 30 * 60 * 1000;
+      entry.admins = [];
+      for (let i = 0; i < perDay; i++) {
+        entry.admins.push({ date: '', time: '', dose: perDose, unit: u, ts: last - i * intervalMs });
+      }
+      entry._timesSet = true;
+    }
+  }
+  if (entry.admins[adminIdx]) {
+    entry.admins[adminIdx].ts = newTs;
+  }
+  saveLedger();
+  notify();
+}
+
 export function removeEntry(id) {
   const i = ledger.findIndex(e => e.id === id);
   if (i >= 0) ledger.splice(i, 1);

@@ -752,13 +752,15 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
  * is (block for <section>, etc.). */
 .show-in-simple,
 .show-in-complex,
+.show-in-timeline,
 .show-in-about,
 .show-in-settings { display: none; }
 
-body.view-simple   .show-in-simple,
-body.view-complex  .show-in-complex,
-body.view-about    .show-in-about,
-body.view-settings .show-in-settings { display: revert; }
+body.view-simple    .show-in-simple,
+body.view-complex   .show-in-complex,
+body.view-timeline  .show-in-timeline,
+body.view-about     .show-in-about,
+body.view-settings  .show-in-settings { display: revert; }
 
 /* Simple medication cards */
 .simple-med {
@@ -1067,6 +1069,114 @@ body.view-settings .show-in-settings { display: revert; }
 .export-row button { font-size: 13px; padding: 6px 12px; }
 .export-row button:disabled { opacity: 0.7; cursor: default; }
 
+/* Timeline view: one PK chart plus the dose list that feeds it. */
+.pk-card h2 { font-family: var(--font-display); }
+.pk-controls { flex-wrap: wrap; gap: 10px; }
+.pk-chart {
+  width: 100%;
+  margin: 12px 0 4px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 4px 2px;
+}
+.pk-svg { display: block; width: 100%; height: auto; }
+.pk-grid line { stroke: var(--border); stroke-width: 0.5; }
+.pk-axis { stroke: var(--border-strong); stroke-width: 1; }
+.pk-tick { font: 11px var(--font-sans); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.pk-axis-label { font: 11px var(--font-sans); fill: var(--muted-2); font-style: italic; }
+.pk-now { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.55; }
+.pk-now-label { font: 10px var(--font-sans); fill: var(--accent); opacity: 0.8; }
+.pk-dose-line { fill: none; stroke-width: 1.4; opacity: 0.85; stroke-linejoin: round; stroke-linecap: round; }
+.pk-total-line { fill: none; stroke: var(--text); stroke-width: 2.2; opacity: 0.85; stroke-linejoin: round; stroke-linecap: round; }
+
+.pk-list-h {
+  font-family: var(--font-display);
+  font-size: 16px;
+  margin: 18px 0 8px;
+  color: var(--text);
+}
+.pk-admins {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.pk-admins th, .pk-admins td {
+  text-align: left;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.pk-admins th {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--surface-1);
+}
+.pk-admins td.num, .pk-admins th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.pk-when { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pk-time-input {
+  font: 12px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 6px;
+  min-width: 0;
+}
+.pk-time-input:hover { border-color: var(--border-strong); }
+.pk-time-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+.pk-drug { font-weight: 600; }
+.pk-meta { color: var(--muted-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.pk-implied { color: var(--muted-2); font-style: italic; font-weight: normal; }
+.pk-dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  margin-right: 7px;
+  vertical-align: baseline;
+  position: relative; top: 1px;
+}
+.pk-ctx-row {
+  margin: 4px 0 12px;
+  padding: 8px 10px;
+  background: var(--surface-2, color-mix(in srgb, var(--accent) 5%, var(--card)));
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  align-items: center;
+}
+.pk-ctx-note {
+  color: var(--muted-2);
+  font-size: 12px;
+  font-style: italic;
+  margin-left: auto;
+}
+.pk-mult {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .pk-admins { font-size: 12px; }
+  .pk-admins th, .pk-admins td { padding: 6px 5px; }
+  .pk-meta { display: none; }
+  .pk-ctx-note { margin-left: 0; flex-basis: 100%; }
+}
+
 /* Print stylesheet: clean summary, no chrome */
 @media print {
   body { background: #fff; color: #000; }
@@ -1078,7 +1188,8 @@ body.view-settings .show-in-settings { display: revert; }
     display: none !important;
   }
   .show-in-settings,
-  .show-in-about { display: none !important; }
+  .show-in-about,
+  .show-in-timeline { display: none !important; }
   .card { border: none; box-shadow: none; padding: 6px 0; margin: 0; page-break-inside: avoid; background: #fff !important; }
   .card.totals { border-top: 1px solid #444; padding-top: 10px; margin-top: 10px; }
   .totals .big-number .value { font-size: 22px; color: #000 !important; }

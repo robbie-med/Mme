@@ -25,6 +25,7 @@
   <nav class="view-tabs" role="tablist" aria-label="View">
     <button class="view-tab" data-view="simple" role="tab" aria-selected="true">Simple</button>
     <button class="view-tab" data-view="complex" role="tab" aria-selected="false">Complex</button>
+    <button class="view-tab" data-view="timeline" role="tab" aria-selected="false">Timeline</button>
     <button class="view-tab view-tab-end" data-view="about" role="tab" aria-selected="false">About</button>
     <button class="view-tab" data-view="settings" role="tab" aria-selected="false">Settings</button>
   </nav>
@@ -270,6 +271,71 @@
         <p class="caveat"><strong>Caveats.</strong> Published equianalgesic ratios are estimates. Methadone conversions in opioid-tolerant patients should involve a pain or palliative specialist. Account for residual fentanyl release for 12&ndash;36 hours after patch removal and for any long-acting formulations. Use extra caution in elderly patients and in hepatic, renal, or pulmonary disease. This tool is not a substitute for clinical judgement.</p>
       </div>
     </details>
+  </section>
+
+  <!-- ========== TIMELINE (pharmacokinetic curves) ========== -->
+  <section class="card show-in-timeline pk-card">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px">
+      <h2 style="margin:0">Dose timeline</h2>
+      <div class="row controls pk-controls" style="margin:0">
+        <label class="ctl">Window
+          <select id="pk-window">
+            <option value="12">Last 12 hours</option>
+            <option value="24" selected>Last 24 hours</option>
+            <option value="48">Last 48 hours</option>
+            <option value="72">Last 72 hours</option>
+            <option value="all">All time</option>
+          </select>
+        </label>
+        <label class="ctl">Show
+          <select id="pk-show">
+            <option value="both" selected>Individual + total</option>
+            <option value="individual">Individual only</option>
+            <option value="total">Total only</option>
+          </select>
+        </label>
+        <label class="ctl">Anchor
+          <select id="pk-anchor">
+            <option value="now" selected>Current time</option>
+            <option value="latest">Latest dose</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <p class="hint">Each line is one dose's pharmacokinetic curve, scaled to its MME contribution. Parsed MAR entries use their real administration times; manually-added meds are plotted at evenly-spaced implied times across the window.</p>
+    <div class="row controls pk-ctx-row">
+      <label class="ctl">Age
+        <select id="pk-age">
+          <option value="unspecified">(none specified)</option>
+          <option value="under65">Under 65</option>
+          <option value="65-74">65 – 74</option>
+          <option value="75plus">75 or older</option>
+        </select>
+      </label>
+      <label class="ctl">Renal
+        <select id="pk-renal">
+          <option value="unspecified">(none specified)</option>
+          <option value="normal">Normal</option>
+          <option value="mild">Mild (CrCl 60–89)</option>
+          <option value="moderate">Moderate (CrCl 30–59)</option>
+          <option value="severe">Severe (CrCl 15–29)</option>
+          <option value="dialysis">Dialysis / CrCl &lt;15</option>
+        </select>
+      </label>
+      <label class="ctl">Hepatic
+        <select id="pk-hepatic">
+          <option value="unspecified">(none specified)</option>
+          <option value="normal">Normal</option>
+          <option value="mild">Mild (Child-Pugh A)</option>
+          <option value="moderate">Moderate (Child-Pugh B)</option>
+          <option value="severe">Severe (Child-Pugh C)</option>
+        </select>
+      </label>
+      <span id="pk-ctx-note" class="pk-ctx-note" hidden>Curves stretched for impaired clearance — half-life shifts shown in the list below.</span>
+    </div>
+    <div id="pk-chart" class="pk-chart"></div>
+    <h3 class="pk-list-h">Doses on file</h3>
+    <div id="pk-admin-list"></div>
   </section>
 
   <!-- ========== ABOUT ========== -->
