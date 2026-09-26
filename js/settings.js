@@ -15,6 +15,9 @@ export const settings = {
   persist: true,
   activeTable: 'cdc',
 };
+// Bump when factor tables or conversion rules change; shown in the About pane
+// and on printed notes so a reader can tell which rules produced a number.
+export const RULES_VERSION = '2026-09 (CDC 2022 Table; FDA label conversion tables)';
 
 export function loadSettings() {
   try {
@@ -28,11 +31,17 @@ export function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
 }
 
-// Patient context: never affects MME math, only which alerts fire.
+// Patient context: never affects the MME total. It changes which alerts
+// fire and applies labeled dose limits to suggested orders (e.g. tramadol
+// max 300 mg/day over age 75, 200 mg/day with CrCl <30).
 export const patientContext = {
   age: 'unspecified',
   renal: 'unspecified',
   hepatic: 'unspecified',
+  // CDC 2022 Rec 8 naloxone risk factors.
+  benzo: false,
+  sleepApnea: false,
+  odHistory: false,
 };
 
 export function saveContext() {
@@ -53,10 +62,14 @@ export function loadContext() {
 export function isContextActive() {
   return patientContext.age !== 'unspecified'
       || patientContext.renal !== 'unspecified'
-      || patientContext.hepatic !== 'unspecified';
+      || patientContext.hepatic !== 'unspecified'
+      || patientContext.benzo || patientContext.sleepApnea || patientContext.odHistory;
 }
 export function clearPatientContext() {
   patientContext.age = 'unspecified';
   patientContext.renal = 'unspecified';
   patientContext.hepatic = 'unspecified';
+  patientContext.benzo = false;
+  patientContext.sleepApnea = false;
+  patientContext.odHistory = false;
 }

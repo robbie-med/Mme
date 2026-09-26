@@ -1,41 +1,34 @@
 // URL hash sync, copy-as-URL, copy-as-EHR-note, print, clipboard helper.
 import { DRUGS, ROUTE_LABELS } from './drugs.js';
 import {
-  TABLES, DEFAULT_TABLE, getActiveTable, getFactor, methadoneOutFactor,
+  DEFAULT_TABLE, getActiveTable, hasFactor, resolveTableKey,
 } from './tables.js';
 import { settings } from './settings.js';
 import { ledger, addManualEntry } from './ledger.js';
-import { filterAdminsByWindow, formatNum } from './mme.js';
+import { formatNum } from './mme.js';
 import { view, VIEWS } from './views.js';
-import { buildConversionOrders } from './conversion.js';
+import { computeConversion } from './conversion.js';
 import { getRiskTier, buildSafetyAlerts } from './safety.js';
-import { getRowsForActiveView } from './render.js';
+import { getRowsForActiveView, getWindowSettings } from './render.js';
 
 let suppressHashSync = false;
 
-function entryDailyDose(entry) {
-  if (entry.source === 'manual' && entry._dose != null) {
+// Shared links encode each entry as the daily dose the calculator is using
+// right now (same window/anchor as the screen), so the link reproduces the
+// displayed MME. Standing entries keep their per-dose × doses/day form.
+function entryShareDose(entry, row) {
+  if (entry.source === 'manual' && !entry._timesSet && entry._dose != null) {
     return { dose: entry._dose, perDay: entry._perDay || 1 };
   }
-  // Parsed entry: compute its all-window normalized daily contribution.
-  const all = filterAdminsByWindow(entry.admins, 'all', Date.now());
-  if (all.kept.length === 0) return { dose: 0, perDay: 1 };
-  let total = all.kept.reduce((s, a) => s + a.dose, 0);
-  let spanH = 0;
-  if (all.kept.length > 1) {
-    spanH = (Math.max(...all.kept.map(a => a.ts)) - Math.min(...all.kept.map(a => a.ts))) / 3600000;
-  }
-  if (spanH > 24) total = (total * 24) / spanH;
-  if (entry.drug === 'fentanyl' && entry.route === 'TD') {
-    const latest = all.kept.reduce((a, b) => a.ts > b.ts ? a : b);
-    return { dose: latest.dose, perDay: 1 };
-  }
-  return { dose: total, perDay: 1 };
+  return { dose: row ? row.normalizedDaily : 0, perDay: 1 };
 }
 
 export function buildShareHash() {
-  const items = ledger.map(e => {
-    const { dose, perDay } = entryDailyDose(e);
+  let rows = [];
+  try { rows = getRowsForActiveView(); } catch (e) { rows = []; }
+  const items = ledger.map((e, i) => {
+    const { dose, perDay } = entryShareDose(e, rows[i]);
+    if (!(dose > 0)) return '';
     return [e.drug, e.route, +dose.toFixed(4), +perDay.toFixed(4)].join('|');
   }).filter(s => s);
   const target = (document.getElementById('target-drug') || {}).value || '';
@@ -65,6 +58,9 @@ export function loadFromHash() {
   const params = new URLSearchParams(location.hash.slice(1));
   const m = params.get('m');
   let loaded = false;
+  // Table first, so the entries below are validated against it.
+  const tbl = params.get('tbl');
+  if (tbl) settings.activeTable = resolveTableKey(tbl);
   if (m) {
     suppressHashSync = true;
     ledger.length = 0;
@@ -73,7 +69,7 @@ export function loadFromHash() {
       const dose = parseFloat(doseStr);
       const perDay = parseFloat(perDayStr) || 1;
       if (!DRUGS[drug] || !isFinite(dose) || dose <= 0) return;
-      if (getFactor(drug, route) == null) return;
+      if (!hasFactor(drug, route)) return;
       addManualEntry({ drug, route, dose, perDay });
     });
     suppressHashSync = false;
@@ -91,8 +87,6 @@ export function loadFromHash() {
   }
   const v = params.get('v');
   if (v && VIEWS.includes(v)) view.current = v;
-  const tbl = params.get('tbl');
-  if (tbl && TABLES[tbl]) settings.activeTable = tbl;
   return loaded;
 }
 
@@ -100,7 +94,10 @@ function buildClinicalNote(rows, totalMME) {
   const lines = [];
   const now = new Date();
   const stamp = now.toISOString().slice(0, 16).replace('T', ' ');
+  const table = getActiveTable();
   lines.push(`MME Calculator · ${stamp}`);
+  const { windowHours } = getWindowSettings();
+  lines.push(`Factor table: ${table.label}. Window: ${windowHours === 'all' ? 'all charted doses' : `last ${windowHours} h`}, normalized to 24 h; typed-in regimens count as daily.`);
   lines.push('');
   lines.push('Current regimen:');
   if (!rows.length) lines.push('  (none)');
@@ -110,6 +107,7 @@ function buildClinicalNote(rows, totalMME) {
     const route = ROUTE_LABELS[e.route] || e.route;
     const mme = r.mme == null ? '—' : formatNum(r.mme);
     lines.push(`  • ${drug} ${route} · ${e.label || ''} → ${mme} MME/day`);
+    lines.push(`      ${r.factorDescription}`);
   });
   lines.push('');
   const tier = getRiskTier(totalMME);
@@ -119,34 +117,25 @@ function buildClinicalNote(rows, totalMME) {
   const targetSel = document.getElementById('target-drug');
   const reductionSel = document.getElementById('reduction');
   if (targetSel && targetSel.value && totalMME > 0) {
-    const [drugKey, route] = targetSel.value.split('|');
-    const reduction = Number(reductionSel.value) / 100;
-    const adjMME = totalMME * (1 - reduction);
-    let dose, unit;
-    if (drugKey === 'methadone' && route === 'PO') {
-      const ratio = methadoneOutFactor(adjMME);
-      dose = adjMME / ratio; unit = 'mg/day PO';
-    } else if (drugKey === 'fentanyl' && route === 'TD') {
-      dose = adjMME / getFactor('fentanyl', 'TD'); unit = 'mcg/hr patch';
-    } else if (drugKey === 'fentanyl' && route === 'IV') {
-      dose = adjMME / getFactor('fentanyl', 'IV'); unit = 'mcg/day IV';
-    } else {
-      const f = getFactor(drugKey, route);
-      if (typeof f === 'number') { dose = adjMME / f; unit = `mg/day ${route}`; }
-    }
-    if (dose != null) {
+    const conv = computeConversion(rows, targetSel.value, Number(reductionSel.value));
+    if (conv && !conv.error) {
       lines.push('');
-      lines.push(`Target conversion: ${DRUGS[drugKey].label} ${route}`);
-      lines.push(`  Cross-tolerance reduction: ${(reduction * 100).toFixed(0)}% (${formatNum(totalMME)} → ${formatNum(adjMME)} MME)`);
-      lines.push(`  Equivalent dose: ${formatNum(dose)} ${unit}`);
-      const orders = buildConversionOrders(drugKey, route, dose, adjMME);
-      if (orders) {
+      lines.push(`Target conversion: ${conv.label} ${conv.route}`);
+      conv.steps.forEach(s => lines.push(`  ${s.k}: ${s.v}`));
+      if (conv.calculatedDaily != null) lines.push(`  Calculated equivalent: ${formatNum(conv.calculatedDaily)} ${conv.unitDaily}`);
+      conv.warnings.forEach(w => lines.push(`  WARNING: ${w}`));
+      if (conv.blocked) {
+        lines.push(`  NOT GENERATED: ${conv.blocked}`);
+      } else if (conv.orders) {
         lines.push('');
         lines.push('Suggested orders:');
-        orders.scheduled.forEach((s, i) => lines.push(`  ${i === 0 ? 'Scheduled:' : '  or'}     ${s}`));
-        lines.push(`  Breakthrough: ${orders.breakthrough}`);
-        orders.notes.forEach(n => lines.push(`  Note: ${n}`));
+        conv.orders.warnings.forEach(w => lines.push(`  WARNING: ${w}`));
+        conv.orders.scheduled.forEach((s, i) => lines.push(`  ${i === 0 ? 'Scheduled:' : '  or'}     ${s}`));
+        lines.push(`  Breakthrough: ${conv.orders.breakthrough}`);
+        if (conv.projectedMME != null) lines.push(`  Projected scheduled total: ${formatNum(conv.projectedMME)} MME/day`);
+        conv.orders.notes.forEach(n => lines.push(`  Note: ${n}`));
       }
+      conv.notes.forEach(n => lines.push(`  Note: ${n}`));
     }
   }
 
@@ -158,8 +147,8 @@ function buildClinicalNote(rows, totalMME) {
   }
 
   lines.push('');
-  lines.push(`Calculated with the MME Calculator using the ${getActiveTable().label} equianalgesic table.`);
-  lines.push('Not a substitute for clinical judgement.');
+  lines.push(`Source: ${table.cite}`);
+  lines.push('Equianalgesic ratios are population estimates. Not a substitute for clinical judgement.');
   return lines.join('\n');
 }
 

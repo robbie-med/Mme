@@ -10,7 +10,8 @@ const ROUTE_PATTERNS = [
   { rx: /\bsublingual\b|\bSL\b/i,                   route: 'SL' },
   { rx: /\bPO\b|\boral\b|\btab\b|\bcap(?:sule)?\b|\bsoln\b|\bsolution\b|\bsuspension\b|\belixir\b|\bliquid\b/i, route: 'PO' },
 ];
-function detectRoute(line) { for (const p of ROUTE_PATTERNS) if (p.rx.test(line)) return p.route; return 'PO'; }
+// Returns null when the order line names no route.
+function detectRoute(line) { for (const p of ROUTE_PATTERNS) if (p.rx.test(line)) return p.route; return null; }
 
 function matchDrugHeader(line) {
   const clean = line.replace(/^[\s••\-*]+/, '').trim();
@@ -35,15 +36,27 @@ function matchOrderLine(line) {
   const m = line.match(/^(?:or\s+)?([\d.]+)\s*(mg|mcg|g)\b(?:\s*\/\s*hr)?\s*[,;]/i);
   if (!m) return null;
   const isRate = /mcg\s*\/\s*hr/i.test(line) || /\bpatch\b/i.test(line);
-  return { strength: parseFloat(m[1]), unit: m[2].toLowerCase(), route: isRate ? 'TD' : detectRoute(line), raw: line };
+  const route = isRate ? 'TD' : detectRoute(line);
+  return { strength: parseFloat(m[1]), unit: m[2].toLowerCase(), route: route || 'PO', routeAssumed: !route, raw: line };
 }
 function matchDateLine(s) { return /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(s); }
 function matchTimeLine(s) { return /^(\d{1,2}):(\d{2})(?:\s*(am|pm))?$/i.exec(s); }
 function matchDoseLine(s) { return /^([\d.]+)\s*(mg|mcg|g)$/i.exec(s); }
-function parseTimestamp(d, t) {
+// Accepts 24-hour ("20:35") and 12-hour ("2:30 pm", "12:05 AM") times.
+export function parseTimestamp(d, t) {
   const [mo, da, y] = d.split('/').map(Number);
   const yr = y < 100 ? 2000 + y : y;
-  const [hh, mm] = t.split(':').map(Number);
+  const tm = /^(\d{1,2}):(\d{2})(?:\s*(am|pm))?$/i.exec(t.trim());
+  if (!tm) return NaN;
+  let hh = Number(tm[1]);
+  const mm = Number(tm[2]);
+  const ap = tm[3] ? tm[3].toLowerCase() : null;
+  if (ap) {
+    if (hh < 1 || hh > 12) return NaN;
+    if (ap === 'am' && hh === 12) hh = 0;
+    else if (ap === 'pm' && hh !== 12) hh += 12;
+  }
+  if (hh > 23 || mm > 59) return NaN;
   return new Date(yr, mo - 1, da, hh, mm).getTime();
 }
 function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
@@ -62,7 +75,12 @@ export function parseMAR(text) {
     const order = matchOrderLine(line);
     if (order) {
       if (!currentDrug) { warnings.push('Order line without a recognized drug header: "' + truncate(line, 60) + '"'); i++; continue; }
-      currentOrder = { drug: currentDrug, route: order.route, strength: order.strength, strengthUnit: order.unit, rawOrder: line, admins: [] };
+      currentOrder = { drug: currentDrug, route: order.route, strength: order.strength, strengthUnit: order.unit, rawOrder: line, admins: [], parseWarnings: [] };
+      if (order.routeAssumed) {
+        const w = `No route found in order line "${truncate(line, 60)}"; assumed PO. Check: an IV/IM/SC order would be several times more potent.`;
+        currentOrder.parseWarnings.push(w);
+        warnings.push(w);
+      }
       orders.push(currentOrder);
       i++; continue;
     }
@@ -72,7 +90,12 @@ export function parseMAR(text) {
       const ddm = tm && matchDoseLine(lines[i + 2]);
       if (dm && tm && ddm) {
         if (!currentOrder) { warnings.push('Dose history without a preceding order; skipping.'); i += 3; continue; }
-        currentOrder.admins.push({ date: lines[i], time: lines[i + 1], dose: parseFloat(ddm[1]), unit: ddm[2].toLowerCase(), ts: parseTimestamp(lines[i], lines[i + 1]) });
+        const ts = parseTimestamp(lines[i], lines[i + 1]);
+        if (!Number.isFinite(ts)) {
+          warnings.push(`Unreadable date/time "${lines[i]} ${lines[i + 1]}"; dose skipped.`);
+        } else {
+          currentOrder.admins.push({ date: lines[i], time: lines[i + 1], dose: parseFloat(ddm[1]), unit: ddm[2].toLowerCase(), ts });
+        }
         i += 3; continue;
       }
     }

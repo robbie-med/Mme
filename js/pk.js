@@ -1,12 +1,17 @@
 // Pharmacokinetics: per-drug, per-route onset / peak / half-life and a curve
-// model that turns one dose admin into an effect-vs-time function.
+// model that turns one dose admin into an exposure-vs-time function.
 //
-// The curve is the standard one-compartment Bateman shape
-//   C(t) = e^(-kel·t) − e^(-ka·t)
-// scaled so peak = 1 at t = peakMin, then multiplied by the dose's MME so the
-// y-axis carries clinical meaning. Transdermal patches use a piecewise model:
-// linear ramp to plateau, plateau at steady-state delivery rate, exponential
-// decay after removal.
+// Every curve is expressed as an instantaneous rate in MME/day, so that
+// patches, infusions and intermittent doses share one y-axis and the total
+// line oscillates around the regimen's MME/day:
+//  • Intermittent doses use the one-compartment Bateman shape
+//      C(t) = e^(-kel·t) − e^(-ka·t),
+//    normalised to unit area, times the dose's MME, times 1440 min/day. The
+//    area under one dose's curve therefore equals that dose's MME.
+//  • Transdermal patches ramp to a plateau equal to the patch's MME/day,
+//    hold it across the wear interval, then decay after removal.
+//  • Impaired clearance (patient context) lengthens the half-life by a
+//    multiplier and raises exposure (AUC, patch plateau) by the same factor.
 //
 // Values are typical adult PK from Goodman & Gilman, UpToDate, and US package
 // inserts. They are for visualization, not for dose individualization.
@@ -58,7 +63,9 @@ export const PK = {
     IV: { onsetMin: 1, peakMin: 4,  halfLifeMin: 180 },
     IM: { onsetMin: 5, peakMin: 10, halfLifeMin: 180 },
     SL: { onsetMin: 5, peakMin: 20, halfLifeMin: 180 },
-    TD: { onsetMin: 720, plateauMin: 72 * 60, decayHalfLifeMin: 1020 },
+    // Worn 72 h from application; serum levels fall ~50% in 20–27 h after
+    // removal (patch label).
+    TD: { onsetMin: 720, plateauMin: 72 * 60 - 720, decayHalfLifeMin: 1400 },
   },
   methadone: {
     PO: { onsetMin: 45, peakMin: 180, halfLifeMin: 1440 },
@@ -159,7 +166,7 @@ function solveKa(peakMin, kel) {
   return (lo + hi) / 2;
 }
 
-// Cache (peakMin, halfLifeMin) → {ka, kel, peakVal} so the bisect runs once.
+// Cache (peakMin, halfLifeMin) → {ka, kel, area} so the bisect runs once.
 const shapeCache = new Map();
 function getShape(peakMin, halfLifeMin) {
   const key = peakMin + '|' + halfLifeMin;
@@ -167,37 +174,40 @@ function getShape(peakMin, halfLifeMin) {
   if (!s) {
     const kel = Math.LN2 / halfLifeMin;
     const ka = solveKa(peakMin, kel);
-    const peakVal = Math.exp(-kel * peakMin) - Math.exp(-ka * peakMin);
-    s = { ka, kel, peakVal: peakVal > 0 ? peakVal : 1 };
+    // ∫0^∞ (e^(-kel·t) − e^(-ka·t)) dt = 1/kel − 1/ka  (minutes)
+    const area = 1 / kel - 1 / ka;
+    s = { ka, kel, area: area > 0 ? area : 1 };
     shapeCache.set(key, s);
   }
   return s;
 }
 
-// Effect intensity (peak-normalised to 1) at tMin minutes after admin.
-function batemanShape(tMin, peakMin, halfLifeMin) {
+// Unit-area Bateman density (per minute) at tMin after admin.
+function batemanDensity(tMin, peakMin, halfLifeMin) {
   if (tMin <= 0) return 0;
-  const { ka, kel, peakVal } = getShape(peakMin, halfLifeMin);
+  const { ka, kel, area } = getShape(peakMin, halfLifeMin);
   const v = Math.exp(-kel * tMin) - Math.exp(-ka * tMin);
-  return v > 0 ? v / peakVal : 0;
+  return v > 0 ? v / area : 0;
 }
 
-// Intensity at tMin for one admin: peak ≈ scale (MME for the dose), zero before
-// admin, follows the PK curve after. Patches plateau across the wear interval
-// and decay afterwards. Returns 0 for drugs/routes with no PK entry.
-export function doseIntensity(drug, route, scale, tMin, ctx) {
+// Exposure rate (MME/day) at tMin for one admin.
+//   mme: the dose's MME for intermittent doses; the MME/day of the patch for
+//        transdermal systems.
+// Returns 0 for drugs/routes with no PK entry.
+export function doseIntensity(drug, route, mme, tMin, ctx) {
   const pk = getPK(drug, route);
-  if (!pk || !scale) return 0;
+  if (!pk || !mme) return 0;
   const mult = organMultiplier(drug, ctx);
   if (pk.plateauMin != null) {
     if (tMin <= 0) return 0;
+    const plateau = mme * mult;
     const onset = pk.onsetMin;
     const end = onset + pk.plateauMin;
-    if (tMin < onset) return (tMin / onset) * scale;
-    if (tMin <= end) return scale;
-    return scale * Math.exp(-Math.LN2 * (tMin - end) / (pk.decayHalfLifeMin * mult));
+    if (tMin < onset) return (tMin / onset) * plateau;
+    if (tMin <= end) return plateau;
+    return plateau * Math.exp(-Math.LN2 * (tMin - end) / (pk.decayHalfLifeMin * mult));
   }
-  return batemanShape(tMin, pk.peakMin, pk.halfLifeMin * mult) * scale;
+  return batemanDensity(tMin, pk.peakMin, pk.halfLifeMin * mult) * mme * mult * 1440;
 }
 
 // How long after admin the curve is still meaningful (≥1% of peak).

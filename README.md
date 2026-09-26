@@ -56,7 +56,7 @@ context), switch to **Complex view**.
   (last 24 / 48 / 72 h or all-normalized-to-24h), the full breakdown table
   with calculation columns, and a references panel.
 - **Settings:** default view on launch, persistence toggle, equianalgesic
-  table picker (CDC 2022 / GlobalRPh / ASCO), install button, live
+  table picker (CDC 2022 / CMS 2017), install button, live
   online/offline cache status, and a confirm-gated Reset.
 
 ### Adding medications
@@ -75,41 +75,39 @@ context), switch to **Complex view**.
 ### MME totals & risk awareness
 
 - **Headline MME / day** updates live as you add or remove entries.
-- **CDC tiered risk badge:** Below threshold (<50), Caution (≥50), High
-  risk (≥90), with the totals card tinted to match.
+- **Risk badge:** Below 50, Caution (≥50, CDC 2022: pause and reassess,
+  offer naloxone), High dosage (≥90, the 2016 guideline threshold), with the
+  totals card tinted to match.
 - **Safety alerts** below the total: naloxone co-prescription prompt,
   high-risk review prompt, methadone-specific cautions (QTc, steady state,
-  specialist), meperidine Beers Criteria, tramadol/codeine CYP2D6, fentanyl
+  specialist), meperidine, tramadol/codeine CYP2D6, fentanyl
   patch opioid-naïve contraindication. Each carries a citation pointer.
 - **Patient context amplifications:** age band, renal CrCl band, and
-  hepatic Child-Pugh band trigger additional alerts (elderly + meperidine
-  → Beers severe; CKD + morphine → M3G/M6G accumulation; severe hepatic +
-  tramadol → avoid). Context never affects MME math.
+  hepatic Child-Pugh band trigger additional alerts, and benzodiazepine /
+  sleep-disordered breathing / overdose-or-SUD history checkboxes feed the
+  CDC 2022 naloxone criteria. Context never changes the MME total; it does
+  apply labeled maximum doses (e.g. tramadol) to suggested orders.
 
 ### Conversion to a target opioid
 
-- Pick a target (PO / IV / IM / SC / transdermal / chronic PO methadone)
-  and a cross-tolerance reduction (0 / 25 / 33 / 50%).
-- Equivalent dose with an explicit calculation breakdown.
-- **Suggested orders**:
-  - Scheduled: ER BID + IR q4h alternative for PO drugs with ER; q4h
-    scheduled for IR-only; TID for chronic methadone; nearest fentanyl
-    patch size rounded down; continuous mcg/hr for fentanyl IV.
-  - Breakthrough: 10–20% of new daily, q4h PRN, rounded to clinically
-    reasonable increments (2.5 mg for oxycodone, 0.5 mg for
-    hydromorphone, 5 mg for morphine, etc.).
-  - Notes: steady-state and ECG for methadone, opioid-tolerance + heat
-    hazard for fentanyl patch, chest-wall rigidity for fentanyl IV.
+- Pick a target and a cross-tolerance reduction (default 50%). See
+  **Conversion rules** below for the exact method per target.
+- Every step is shown: current total, conversion basis, reduction, factor,
+  calculated daily dose, and the ordered dose as a % of the calculation.
+- **Suggested orders**: ER at its labeled interval (opioid-tolerant only),
+  IR/parenteral at the shortest practical interval, all rounded down;
+  methadone q8h from the label table; patch from the label table;
+  breakthrough 10–20% of the daily dose. Labeled maximums are enforced.
 - **Before/after comparison:** two-column current-vs-proposed view with
   each side's total and risk-tier badge plus a Δ from current. **Apply
   this regimen** swaps the ledger to the proposed primary entry in one
   click.
 - **Taper-schedule generator:** stepwise reduction from the proposed
-  regimen. Configurable reduction-per-step (10/15/25/50%), interval
-  (weekly / fortnightly / monthly), and endpoint (≤50% of starting MME /
-  ≤25% / stop). Each row shows the per-drug dose, MME, % of start, and
-  the CDC risk tier crossed into. Copy-to-clipboard yields plaintext
-  with a reassessment reminder.
+  regimen. Presets: 10% of the original dose per month (CDC 2022, ≥1 year
+  of use), 10% of original per week then 10% of remaining (CDC 2022,
+  shorter use), or 25% every 2 weeks (fastest labeled rate). Doses round
+  down to givable amounts; patches use marketed strengths. Each row shows
+  dose, MME, % of start and risk tier.
 
 ### Transparency
 
@@ -120,12 +118,10 @@ context), switch to **Complex view**.
 - Click the headline total to see a per-medication breakdown that sums to
   the displayed value.
 
-### Alternative equianalgesic tables
+### Equianalgesic tables
 
-A Settings dropdown switches between three preset tables. Each is
-self-contained: factors, methadone tier breakpoints, label, and citation.
-All calculations, derivations, conversions, and the EHR-note exporter use
-the active table.
+A Settings dropdown switches between CDC 2022 (default) and CMS 2017
+(graduated methadone). See **Equianalgesic factors** below.
 
 ### Share & export
 
@@ -178,20 +174,19 @@ Ledger mutation (addManualEntry / addPCAEntry / addParsedOrders /
 
 For each entry, `computeEntryMME`:
 
-1. Filter administrations by the active time window (last X hours ending
-   at the latest admin, or all-normalized-to-24h).
-2. Sum doses, handling unit conversions (g → mg).
-3. For multi-admin entries spanning > 24 h in "all" mode, scale to a
-   24-hour rate.
-4. Look up the factor from the active equianalgesic table.
-5. Special-case fentanyl transdermal (factor × mcg/hr, latest patch
-   rate) and methadone PO (tiered factor based on total daily mg).
-6. Multiply for the MME contribution.
+1. Typed-in regimens are already daily amounts. Charted doses are filtered
+   to the window and scaled to 24 h (see **Time windows**).
+2. Each dose is converted to the drug's unit (g / mg / mcg).
+3. Patches use the most recent application's rate if within 72 h.
+4. Look up the factor (or range) from the active table; methadone uses
+   the table's methadone rule on the daily oral-equivalent dose.
+5. MME = daily dose × factor (upper value); the lower value is kept as the
+   conversion basis.
 
 ### URL hash format
 
 ```
-#m=morphine|PO|30|1;oxycodone|PO|5|4&t=hydromorphone|PO&rx=25&v=complex&tbl=globalrph
+#m=morphine|PO|30|1;oxycodone|PO|5|4&t=hydromorphone|PO&rx=50&v=complex&tbl=cms
 ```
 
 - `m=`: medications as `drug|route|dose|perDay`, semicolon-separated.
@@ -204,52 +199,110 @@ For each entry, `computeEntryMME`:
 
 ## Equianalgesic factors
 
-Three tables ship preset. Default is **CDC 2022**.
+Every factor is traceable to a published source (see **Sources** below).
+Two tables ship; the default is **CDC 2022**. They differ only where the
+sources differ:
 
-### Non-methadone factors (MME per mg of drug)
+| Drug | CDC 2022 | CMS 2017 |
+|---|---|---|
+| Hydromorphone PO | 5 | 4 |
+| Tramadol PO | 0.2 | 0.1 |
+| Methadone PO | 4.7 (single factor) | 4 (≤20 mg/day), 8 (>20–40), 10 (>40–60), 12 (>60) |
 
-The three tables agree on most drugs. The notable difference: **ASCO /
-Practical Pain Management** uses a 1:5 hydromorphone PO ratio
-(factor 5) instead of 1:4 (factor 4).
+Shared entries (MME per mg unless noted):
 
-| Drug | Route | CDC 2022 / GlobalRPh | ASCO / Practical |
+| Drug | Route | Factor | Source |
 |---|---|---|---|
-| Morphine | PO | 1 | 1 |
-| Morphine | IV / IM / SC | 3 | 3 |
-| Hydromorphone | PO | 4 | **5** |
-| Hydromorphone | IV / IM / SC | 20 | **25** |
-| Oxycodone | PO | 1.5 | 1.5 |
-| Oxymorphone | PO | 3 | 3 |
-| Oxymorphone | IV / IM / SC | 30 | 30 |
-| Hydrocodone | PO | 1 | 1 |
-| Codeine | PO | 0.15 | 0.15 |
-| Codeine | IV / IM / SC | 0.25 | 0.25 |
-| Tramadol | PO | 0.1 | 0.1 |
-| Tapentadol | PO | 0.4 | 0.4 |
-| Meperidine | PO | 0.1 | 0.1 |
-| Meperidine | IV / IM / SC | 0.4 | 0.4 |
-| Fentanyl | IV / IM (per mcg) | 0.3 | 0.3 |
-| Fentanyl | Transdermal (per mcg/hr-day) | 2.4 | 2.4 |
+| Morphine | PO | 1 | CDC 2022 |
+| Oxycodone | PO | 1.5 | CDC 2022 |
+| Oxymorphone | PO | 3 | CDC 2022 |
+| Hydrocodone | PO | 1 | CDC 2022 |
+| Codeine | PO | 0.15 | CDC 2022 |
+| Tapentadol | PO | 0.4 | CDC 2022 |
+| Fentanyl | Transdermal (per mcg/hr) | 2.4 | CDC 2022 |
+| Fentanyl | Buccal / SL / lozenge (per mcg) | 0.13 | CMS 2017 |
+| Meperidine | PO | 0.1 | CMS 2017 |
+| Levorphanol | PO | 11 | CMS 2017 |
+| Butorphanol | Nasal spray | 7 | CMS 2017 |
+| Buprenorphine | any | not counted | CDC 2022 footnote 6 |
+| Morphine | IV / IM / SC | 2–3 | UofT chart: 10 mg parenteral = 20–30 mg oral |
+| Hydromorphone | IV / IM / SC | 13.3–20 | UofT: 1.5 mg ≈ 10 mg parenteral morphine |
+| Meperidine | IV / IM / SC | 0.27–0.4 | UofT: 75 mg ≈ 10 mg parenteral morphine |
+| Codeine | IM / SC (not IV) | 0.17–0.25 | UofT: 120 mg ≈ 10 mg parenteral morphine |
+| Fentanyl | IV / IM / SC (per mcg) | 0.1–0.3 | UofT (100 mcg ≈ 10 mg IV morphine) and CMS footnote vii (1 mg ≈ 100 mg oral morphine) |
+| Nalbuphine | IV / IM / SC | 2–3 | Label: mg-for-mg with morphine |
+| Methadone | IV | oral factor applied to 2 × IV mg | Methadone label: parenteral:oral 1:2 |
 
-### Methadone PO, inbound (drug → MME)
+**Ranges.** Where sources disagree, the MME **total** uses the upper value
+and **conversions** use the lower value for the current opioids and the
+upper value for the target, so a suggested dose errs low.
 
-| Daily methadone dose | CDC 2022 | GlobalRPh | ASCO / Practical |
-|---|---|---|---|
-| ≤ 20 mg/day | × 4 | × 7 (flat) | × 4 (≤30 mg) |
-| 21–40 mg/day | × 8 | × 7 | × 8 (≤90 mg) |
-| 41–60 mg/day | × 10 | × 7 | × 8 |
-| > 60 mg/day | × 12 | × 7 | × 12 (>90 mg) |
+The GlobalRPh and ASCO tables from earlier versions were removed because
+their values could not be traced to a published source. Old links with
+`tbl=globalrph` or `tbl=asco` fall back to CDC 2022.
 
-### Methadone PO, outbound (MME → methadone, ratio)
+## Conversion rules
 
-| Total MME | CDC 2022 | GlobalRPh | ASCO / Practical |
-|---|---|---|---|
-| ≤ 80–99 MME | 4 : 1 | 4 : 1 (≤99) | 4 : 1 (≤90) |
-| 100–320 MME | 8 : 1 | 8 : 1 (≤299) | 8 : 1 (≤300) |
-| 320–600 MME | 10 : 1 | 12 : 1 (≤499) | 12 : 1 |
-| 500–999 MME | 12 : 1 (>600) | 15 : 1 | 12 : 1 |
-| 1000–1999 MME | 12 : 1 | 20 : 1 | 12 : 1 |
-| ≥ 2000 MME | 12 : 1 | 30 : 1 | 12 : 1 |
+- **Most targets:** conversion basis MME × (1 − cross-tolerance reduction,
+  default 50%) ÷ the target's factor. CDC 2022 Table footnote 3: the new
+  opioid is dosed "substantially lower than the calculated MME dose." The
+  Dilaudid injection and hydromorphone ER labels use 50%.
+- **Methadone target:** FDA methadone label Table 1 (percent of oral MED:
+  <100 mg 20–30%, 100–300 mg 10–20%, 300–600 mg 8–12%, 600–1,000 mg 5–10%,
+  >1,000 mg <5%). The low end is used, held monotonic across band edges, and
+  capped at 30 mg/day (APS 2014: start no higher than 30–40 mg/day). No extra
+  cross-tolerance reduction.
+- **Fentanyl patch target:** FDA patch label Table 2 (60–134 mg/day → 25
+  mcg/hr, then +25 mcg/hr per 90 mg/day up to 1,124). Blocked below 60
+  MME/day (opioid-tolerant only) and above the table.
+- **Converting from methadone:** orders are not generated (the label says
+  its table cannot be used in reverse).
+- **Rounding:** every dose is rounded **down** to a marketed strength;
+  IR/parenteral doses pick the shortest interval (q4h, q6h, q8h) that still
+  meets the smallest practical dose. ER products use their labeled interval
+  (hydromorphone ER, hydrocodone ER, tramadol ER once daily; morphine,
+  oxycodone, oxymorphone, tapentadol ER q12h) and are suggested only at
+  ≥60 MME/day.
+- **Labeled maximums:** tramadol 400 mg/day (300 over age 75; 200 with CrCl
+  <30), tramadol ER 300, tapentadol 600 (ER 500), codeine 360. Orders are
+  capped and a warning is shown.
+- **Breakthrough:** 10–20% of the total daily dose (Myers & Shetty 2008).
+
+## Time windows
+
+- Typed-in regimens (manual, PCA, shared link) are daily amounts and are
+  never filtered by the window.
+- Charted MAR doses: window is (anchor − N h, anchor]; the sum is scaled by
+  24 / N. "All shown" divides by the observed span (first → last dose plus
+  one median interval, minimum 24 h).
+- The "latest dose" anchor uses only charted doses.
+- A patch counts at its rate for 72 h after its most recent application.
+- Doses charted in g, mg or mcg are converted to the drug's unit per dose.
+
+## Sources
+
+- Dowell D, et al. CDC Clinical Practice Guideline for Prescribing Opioids
+  for Pain, United States, 2022. MMWR Recomm Rep 2022;71(RR-3). Table;
+  Recommendations 4, 5, 8, 11.
+- CMS / CDC Opioid Oral MME Conversion Factors (CDC compilation, 2017
+  version), including graduated methadone factors.
+- FDA prescribing information via DailyMed: fentanyl transdermal system;
+  methadone HCl tablets; Dilaudid (hydromorphone) injection; hydromorphone
+  ER tablets; OxyContin; morphine sulfate ER; Hysingla ER; oxymorphone ER;
+  Nucynta and Nucynta ER; tramadol tablets and ER capsules; codeine sulfate;
+  nalbuphine injection; butorphanol nasal spray; hydrocodone/acetaminophen.
+- University of Toronto Department of Surgery. Opioid Equianalgesic Table,
+  Nov 2014 (parenteral equivalences).
+- Chou R, et al. Methadone safety: a clinical practice guideline from the
+  American Pain Society. J Pain 2014;15:321–37.
+- Myers J, Shetty N. Going beyond efficacy: strategies for cancer pain
+  management. Curr Oncol 2008;15 Suppl 1:S41–9.
+
+## Tests
+
+```bash
+npm test        # node --test tests/*.test.mjs, no dependencies
+```
 
 ---
 
@@ -288,7 +341,7 @@ README.md                   this file
 js/                         ES-module sources (no bundler)
 ├── main.js                 entry point, init, event wiring
 ├── drugs.js                drug catalog + aliases + route labels
-├── tables.js               CDC / GlobalRPh / ASCO factor tables
+├── tables.js               CDC 2022 / CMS 2017 factor tables + sources
 ├── settings.js             settings + patient context + localStorage
 ├── ledger.js               ledger array, mutations, persistence, subscribe
 ├── mar-parser.js           EHR-paste parser

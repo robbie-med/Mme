@@ -41,8 +41,20 @@ export const DRUG_ALIASES = {
 };
 
 export const ROUTE_LABELS = {
-  PO: 'PO (oral)', IV: 'IV', IM: 'IM', SC: 'SC / SubQ', TD: 'Transdermal', SL: 'Sublingual',
+  PO: 'PO (oral)', IV: 'IV', IM: 'IM', SC: 'SC / SubQ', TD: 'Transdermal',
+  SL: 'Buccal / SL / lozenge', NS: 'Nasal spray',
 };
 
-// Fentanyl is dosed in mcg; everything else in mg.
+// Canonical dosing unit for each drug. Fentanyl is dosed in mcg (mcg/hr for
+// patches); everything else in mg.
 export function drugUnit(drugKey) { return drugKey === 'fentanyl' ? 'mcg' : 'mg'; }
+
+// Convert a charted dose to the drug's canonical unit (mg, or mcg for
+// fentanyl). Returns null for units that cannot be converted (e.g. mL).
+export function toCanonicalDose(dose, unit, drugKey) {
+  const u = String(unit || '').toLowerCase();
+  const target = drugUnit(drugKey);
+  const inMg = u === 'g' ? dose * 1000 : u === 'mg' ? dose : u === 'mcg' ? dose / 1000 : null;
+  if (inMg == null) return null;
+  return target === 'mcg' ? inMg * 1000 : inMg;
+}

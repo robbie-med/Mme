@@ -76,8 +76,9 @@ export function addParsedOrders(orders) {
   orders.forEach(o => {
     ledger.push({
       id: nextId++, source: 'parsed', drug: o.drug, route: o.route,
-      label: `${formatNum(o.strength)} ${o.strengthUnit}${o.route !== 'TD' ? ` ${ROUTE_LABELS[o.route] || o.route}` : ' patch'} · ${o.admins.length} dose${o.admins.length === 1 ? '' : 's'} on file`,
+      label: `${o.route === 'TD' ? `${formatNum(o.strength)} mcg/hr patch` : `${formatNum(o.strength)} ${o.strengthUnit} ${ROUTE_LABELS[o.route] || o.route}`} · ${o.admins.length} dose${o.admins.length === 1 ? '' : 's'} on file`,
       strengthUnit: o.strengthUnit, admins: o.admins,
+      parseWarnings: o.parseWarnings || [],
     });
   });
   saveLedger();
@@ -98,10 +99,11 @@ export function setAdminTime(entryId, adminIdx, newTs) {
       // Single-admin patch: just mark; the existing admin holds the rate.
       entry._timesSet = true;
     } else {
-      const perDay = Math.max(1, Math.round(entry._perDay || entry._demands || 1));
-      const perDose = entry._dose != null
-        ? entry._dose
-        : (entry.admins[0] ? entry.admins[0].dose / perDay : 0);
+      // Keep the daily total unchanged when doses/day is fractional
+      // (e.g. 2.5/day becomes 3 doses of daily ÷ 3).
+      const perDay = Math.max(1, Math.round(entry._perDay || 1));
+      const daily = entry.admins.reduce((s, a) => s + a.dose, 0);
+      const perDose = daily / perDay;
       const u = entry.admins[0] ? entry.admins[0].unit : (entry.strengthUnit || 'mg');
       const intervalMs = (24 * 3600 * 1000) / perDay;
       const last = Date.now() - 30 * 60 * 1000;

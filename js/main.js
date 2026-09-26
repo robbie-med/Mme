@@ -3,10 +3,10 @@
 
 import { DRUGS } from './drugs.js';
 import {
-  TABLES, DEFAULT_TABLE,
+  TABLES, DEFAULT_TABLE, resolveTableKey,
 } from './tables.js';
 import {
-  SETTINGS_KEY, LEDGER_KEY, CONTEXT_KEY,
+  SETTINGS_KEY, LEDGER_KEY, CONTEXT_KEY, RULES_VERSION,
   settings, loadSettings, saveSettings,
   patientContext, loadContext, saveContext, clearPatientContext,
 } from './settings.js';
@@ -28,7 +28,7 @@ import { wireTimeline, renderTimeline } from './timeline.js';
 
 const EXAMPLE = `HYDROmorphone (Dilaudid inj)
 0.5 mg, 0.25 mL, IV, q3 hr, PRN: Moderate to Severe Pain
-Started: Sikora MD, Kenneth R (IHI) 5/25/26 • 07:02
+Started: Example MD 5/25/26 • 07:02
 Ended: 5/25/26 • 22:55
 5/25/26
 20:35
@@ -76,7 +76,9 @@ function applySettingsToUI() {
   document.getElementById('setting-default-view').value = settings.defaultView;
   document.getElementById('setting-persist').checked = !!settings.persist;
   const tableSel = document.getElementById('setting-table');
-  if (tableSel) tableSel.value = TABLES[settings.activeTable] ? settings.activeTable : DEFAULT_TABLE;
+  if (tableSel) tableSel.value = resolveTableKey(settings.activeTable);
+  const ver = document.getElementById('rules-version');
+  if (ver) ver.textContent = RULES_VERSION;
   applyContextToUI();
 }
 
@@ -96,8 +98,11 @@ function wireSettings() {
     if (TABLES[e.target.value]) {
       settings.activeTable = e.target.value;
       saveSettings();
+      updateRouteOptions();
+      updateDoseLabels();
       syncHash();
       render();
+      renderTimeline();
     }
   });
   document.getElementById('setting-reset').addEventListener('click', () => {
@@ -119,6 +124,8 @@ function wireSettings() {
 
 function init() {
   loadSettings();
+  // Saved settings may name a table that has since been removed.
+  settings.activeTable = resolveTableKey(settings.activeTable);
   loadLedger();
   loadContext();
 
@@ -171,7 +178,7 @@ function init() {
   // Settings + patient context + PWA + export
   applySettingsToUI();
   wireSettings();
-  wirePatientContext(() => { /* render triggers via context save; explicit call below */ render(); });
+  wirePatientContext(() => { render(); renderTimeline(); });
   wirePWA();
   wireExport();
   wireTimeline();

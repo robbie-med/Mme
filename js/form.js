@@ -48,11 +48,23 @@ export function updateDoseLabels() {
     doseUnitHint.textContent = '(mcg)';
     freqField.style.display = ''; freqLabel.textContent = 'Doses per day';
     help.textContent = 'For a continuous infusion, enter mcg/hr in "Dose" and 24 in "Doses per day".';
-  } else if (drug === 'methadone' && route === 'PO') {
+  } else if (drug === 'methadone') {
     doseLabel.firstChild.textContent = 'Dose per administration ';
     doseUnitHint.textContent = '(mg)';
     freqField.style.display = ''; freqLabel.textContent = 'Doses per day';
-    help.textContent = 'Chronic dosing assumed; tiered methadone factor applied to total daily mg.';
+    help.textContent = route === 'IV'
+      ? 'IV methadone is converted to oral-equivalent mg at 1:2 (methadone label), then the table factor is applied.'
+      : 'Total daily mg × the active table factor (CDC 2022: 4.7; CMS: 4–12 by daily dose).';
+  } else if (drug === 'buprenorphine') {
+    doseLabel.firstChild.textContent = 'Dose per administration ';
+    doseUnitHint.textContent = '(mg)';
+    freqField.style.display = ''; freqLabel.textContent = 'Doses per day';
+    help.textContent = 'Buprenorphine has no MME factor: CDC 2022 excludes it (partial agonist with a ceiling effect).';
+  } else if (drug === 'fentanyl' && route === 'SL') {
+    doseLabel.firstChild.textContent = 'Dose per administration ';
+    doseUnitHint.textContent = '(mcg)';
+    freqField.style.display = ''; freqLabel.textContent = 'Doses per day';
+    help.textContent = 'Buccal / sublingual tablet or lozenge: 0.13 MME per mcg (CMS). Films, oral and nasal sprays have different factors.';
   } else {
     doseLabel.firstChild.textContent = 'Dose per administration ';
     doseUnitHint.textContent = `(${u})`;
@@ -116,11 +128,18 @@ function humanizeAge(a) {
   return ({ 'under65': '<65', '65-74': '65–74', '75plus': '≥75' })[a] || a;
 }
 
+const CTX_FLAGS = { benzo: 'ctx-benzo', sleepApnea: 'ctx-sleep', odHistory: 'ctx-od' };
+const CTX_FLAG_LABELS = { benzo: 'benzodiazepine', sleepApnea: 'sleep apnea', odHistory: 'OD/SUD history' };
+
 export function applyContextToUI() {
   const map = { age: 'ctx-age', renal: 'ctx-renal', hepatic: 'ctx-hepatic' };
   for (const key in map) {
     const el = document.getElementById(map[key]);
     if (el) el.value = patientContext[key];
+  }
+  for (const key in CTX_FLAGS) {
+    const el = document.getElementById(CTX_FLAGS[key]);
+    if (el) el.checked = !!patientContext[key];
   }
   const chip = document.getElementById('ctx-active-chip');
   if (chip) {
@@ -129,6 +148,7 @@ export function applyContextToUI() {
       if (patientContext.age !== 'unspecified')     parts.push(humanizeAge(patientContext.age));
       if (patientContext.renal !== 'unspecified')   parts.push('renal: ' + patientContext.renal);
       if (patientContext.hepatic !== 'unspecified') parts.push('hepatic: ' + patientContext.hepatic);
+      for (const key in CTX_FLAGS) if (patientContext[key]) parts.push(CTX_FLAG_LABELS[key]);
       chip.hidden = false;
       chip.textContent = 'Active · ' + parts.join(' · ');
     } else {
@@ -145,6 +165,16 @@ export function wirePatientContext(onChange) {
     if (!el) continue;
     el.addEventListener('change', e => {
       patientContext[key] = e.target.value;
+      saveContext();
+      applyContextToUI();
+      onChange();
+    });
+  }
+  for (const key in CTX_FLAGS) {
+    const el = document.getElementById(CTX_FLAGS[key]);
+    if (!el) continue;
+    el.addEventListener('change', e => {
+      patientContext[key] = e.target.checked;
       saveContext();
       applyContextToUI();
       onChange();

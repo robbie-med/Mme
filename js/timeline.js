@@ -4,10 +4,10 @@
 // times across the most-recent 24h so they still show up.
 
 import { ledger, setAdminTime } from './ledger.js';
-import { DRUGS, ROUTE_LABELS, drugUnit } from './drugs.js';
-import { getFactor, methadoneInFactor } from './tables.js';
+import { DRUGS, ROUTE_LABELS, drugUnit, toCanonicalDose } from './drugs.js';
+import { getFactorRange } from './tables.js';
 import { doseIntensity, doseDurationMin, getPK, organMultiplier } from './pk.js';
-import { formatNum } from './mme.js';
+import { formatNum, computeEntryMME, latestTimedTs } from './mme.js';
 import { patientContext, saveContext, isContextActive } from './settings.js';
 
 const STATE_KEY = 'mme.timeline.v1';
@@ -42,23 +42,17 @@ function colorFor(drug) {
   return drugColorCache.get(drug);
 }
 
-// Per-admin MME (single dose, not daily). Methadone uses the entry's daily
-// tier so a 10 mg dose inside a 40 mg/day regimen scores 80 MME (10×8), not
-// 40 (10×4). Patch entries are special: the curve's plateau encodes the
-// daily MME of the patch rate, so we return that here.
-function adminMME(entry, admin) {
-  const drug = entry.drug, route = entry.route;
-  if (drug === 'fentanyl' && route === 'TD') {
-    const rate = admin.dose;
-    return rate * getFactor('fentanyl', 'TD');
-  }
-  if (drug === 'methadone' && route === 'PO') {
-    const daily = entry.admins.reduce((s, a) => s + a.dose, 0);
-    const tier = methadoneInFactor(daily);
-    return admin.dose * tier;
-  }
-  const f = getFactor(drug, route);
-  return (typeof f === 'number') ? admin.dose * f : 0;
+// Per-admin MME (single dose, not daily), using the same factor as the MME
+// total: methadone's factor depends on the entry's daily dose (CMS tiers), so
+// it is looked up at that daily dose. Patch entries return the patch's
+// MME/day, which is what its plateau represents.
+function entryDailyDose(entry) {
+  const anchor = latestTimedTs([entry]) ?? Date.now();
+  return computeEntryMME(entry, '24', anchor).normalizedDaily;
+}
+function adminMME(entry, admin, daily) {
+  const rg = getFactorRange(entry.drug, entry.route, daily);
+  return rg ? admin.dose * rg.hi : 0;
 }
 
 // Expand the ledger into one flat list of dose events, each with a real ts.
@@ -72,48 +66,52 @@ export function collectDoses() {
     const drug = entry.drug, route = entry.route;
     const label = DRUGS[drug] ? DRUGS[drug].label : drug;
     const routeLbl = ROUTE_LABELS[route] || route;
+    const isTD = drug === 'fentanyl' && route === 'TD';
+    const daily = entryDailyDose(entry);
     const isReal = entry.source === 'parsed' || entry._timesSet;
+    const base = { drug, route, label, routeLbl, entryId: entry.id };
     if (!isReal) {
-      // Manual or PCA, no user-set times yet: synthesise admins across last
-      // 24h. adminIdx mirrors the index that materialisation will use, so
-      // the first time the user edits a row the dose-to-admin mapping holds.
-      if (drug === 'fentanyl' && route === 'TD') {
-        out.push({
-          ts: now - 24 * 3600 * 1000,
-          drug, route, label, routeLbl,
-          dose: entry._dose || (entry.admins[0] && entry.admins[0].dose) || 0,
-          unit: 'mcg/hr',
-          mme: adminMME(entry, { dose: entry._dose || entry.admins[0].dose }),
-          synthetic: true, entryId: entry.id, adminIdx: 0,
-        });
+      // Manual or PCA, no user-set times yet: synthesise admins across the
+      // last 24h. adminIdx mirrors the index that materialisation will use,
+      // so the first time the user edits a row the dose-to-admin mapping holds.
+      if (isTD) {
+        const rate = entry._dose || (entry.admins[0] && entry.admins[0].dose) || 0;
+        out.push({ ...base, ts: now - 24 * 3600 * 1000, dose: rate, unit: 'mcg/hr',
+          mme: adminMME(entry, { dose: rate }, rate), synthetic: true, adminIdx: 0 });
         return;
       }
-      const perDay = Math.max(1, Math.round(entry._perDay || entry._demands || 1));
-      const perDose = entry._dose || (entry.admins[0] && entry.admins[0].dose / perDay) || 0;
+      if (entry.source === 'pca') {
+        // Basal infusion as hourly aliquots + demand doses spread evenly.
+        // Not editable: the PCA is a settings record, not discrete doses.
+        const basal = entry._basal || 0, demand = entry._demand || 0;
+        const nDem = Math.max(0, Math.round(entry._demands || 0));
+        for (let h = 0; basal > 0 && h < 24; h++) {
+          out.push({ ...base, ts: now - (h + 0.5) * 3600 * 1000, dose: basal, unit: drugUnit(drug),
+            mme: adminMME(entry, { dose: basal }, daily), synthetic: true, editable: false, note: 'basal (hourly)' });
+        }
+        for (let i = 0; demand > 0 && i < nDem; i++) {
+          out.push({ ...base, ts: now - 30 * 60 * 1000 - i * (24 * 3600 * 1000 / nDem), dose: demand, unit: drugUnit(drug),
+            mme: adminMME(entry, { dose: demand }, daily), synthetic: true, editable: false, note: 'demand' });
+        }
+        return;
+      }
+      const perDay = Math.max(1, Math.round(entry._perDay || 1));
+      const perDose = entry.admins.reduce((s, a) => s + a.dose, 0) / perDay;
       const intervalMs = (24 * 3600 * 1000) / perDay;
       const last = now - 30 * 60 * 1000;
       for (let i = 0; i < perDay; i++) {
-        const ts = last - i * intervalMs;
-        out.push({
-          ts, drug, route, label, routeLbl,
-          dose: perDose, unit: drugUnit(drug),
-          mme: adminMME(entry, { dose: perDose }),
-          synthetic: true, entryId: entry.id, adminIdx: i,
-        });
+        out.push({ ...base, ts: last - i * intervalMs, dose: perDose, unit: drugUnit(drug),
+          mme: adminMME(entry, { dose: perDose }, daily), synthetic: true, adminIdx: i });
       }
       return;
     }
     // Real admins: either parsed MAR or a manual entry whose times have been
     // edited (and so materialised) by the user.
     entry.admins.forEach((a, idx) => {
-      if (!a.ts) return;
-      const isTD = drug === 'fentanyl' && route === 'TD';
-      out.push({
-        ts: a.ts, drug, route, label, routeLbl,
-        dose: a.dose, unit: a.unit || (isTD ? 'mcg/hr' : drugUnit(drug)),
-        mme: adminMME(entry, a),
-        synthetic: false, entryId: entry.id, adminIdx: idx,
-      });
+      if (!Number.isFinite(a.ts)) return;
+      out.push({ ...base, ts: a.ts, dose: a.dose, unit: isTD ? 'mcg/hr' : (a.unit || drugUnit(drug)),
+        mme: adminMME(entry, { dose: toCanonicalDose(a.dose, a.unit || drugUnit(drug), drug) || 0 }, daily),
+        synthetic: false, adminIdx: idx });
     });
   });
   out.sort((a, b) => b.ts - a.ts);
@@ -242,7 +240,7 @@ function buildChartSVG(doses, opts) {
     svg += `<path class="pk-total-line" d="${pathFor(totals)}" />`;
   }
   // Axis labels.
-  svg += `<text class="pk-axis-label" x="${PAD.left}" y="${PAD.top - 6}">Effect (MME-scaled)</text>`;
+  svg += `<text class="pk-axis-label" x="${PAD.left}" y="${PAD.top - 6}">Exposure (MME/day rate)</text>`;
   svg += `<text class="pk-axis-label" x="${VB_W - PAD.right}" y="${VB_H - 6}" text-anchor="end">Hours</text>`;
 
   svg += `</svg>`;
@@ -311,7 +309,7 @@ function renderAdminList(doses) {
     const doseStr = `${formatNum(d.dose)} ${d.unit}`;
     const mmeStr = formatNum(d.mme);
     const inputVal = toLocalInputValue(d.ts);
-    const implied = d.synthetic ? ' <em class="pk-implied" title="Synthesised from the dose schedule. Edit to set a real time.">implied</em>' : '';
+    const implied = d.synthetic ? ` <em class="pk-implied" title="Synthesised from the dose schedule.${d.editable === false ? '' : ' Edit to set a real time.'}">implied${d.note ? ' · ' + d.note : ''}</em>` : '';
     const pk = getPK(d.drug, d.route);
     const mult = organMultiplier(d.drug, patientContext);
     const adjChip = mult > 1.001 ? ` <span class="pk-mult" title="Half-life multiplier from patient context">×${mult.toFixed(2)}</span>` : '';
@@ -321,15 +319,17 @@ function renderAdminList(doses) {
       : '<span class="muted">no PK data</span>';
     return `<tr>
       <td class="pk-when">
-        <input type="datetime-local" class="pk-time-input" value="${inputVal}"
+        ${d.editable === false
+          ? `<span class="pk-time-fixed">${inputVal.replace('T', ' ')}</span>`
+          : `<input type="datetime-local" class="pk-time-input" value="${inputVal}"
           data-entry-id="${d.entryId}" data-admin-idx="${d.adminIdx}"
-          aria-label="Administration time">
+          aria-label="Administration time">`}
         ${implied}
       </td>
       <td class="pk-drug">${drugLbl}</td>
       <td>${d.routeLbl}</td>
       <td class="num">${doseStr}</td>
-      <td class="num">${mmeStr} MME</td>
+      <td class="num">${mmeStr} ${d.unit === 'mcg/hr' ? 'MME/day' : 'MME'}</td>
       <td class="pk-meta">${pkStr}</td>
     </tr>`;
   }).join('');

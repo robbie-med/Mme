@@ -1,37 +1,51 @@
-// CDC MME risk tiers + drug-specific safety alerts + patient-context layering.
+// MME risk tiers + drug-specific safety alerts + patient-context layering.
 // Pure data functions: callers render the alert objects into the DOM.
+// Wording and thresholds are taken from the cited source (README "Sources").
 import { ledger } from './ledger.js';
 import { patientContext } from './settings.js';
 
+// CDC 2022 Rec 4: at ≥50 MME/day pause and reassess, add precautions and
+// offer naloxone; it sets no fixed upper ceiling. 90 MME/day was the 2016
+// guideline's "avoid or carefully justify" threshold and is still widely used
+// (e.g. PDMP reports), so it is kept as a labelled tier.
 export function getRiskTier(mme) {
-  if (mme >= 90) return { level: 'high',    label: 'High risk',       explain: '≥90 MME/day' };
+  if (mme >= 90) return { level: 'high',    label: 'High dosage',     explain: '≥90 MME/day' };
   if (mme >= 50) return { level: 'caution', label: 'Caution',         explain: '≥50 MME/day' };
-  return                { level: 'low',     label: 'Below threshold', explain: '<50 MME/day' };
+  return                { level: 'low',     label: 'Below 50',        explain: '<50 MME/day' };
 }
 
-function addPatientContextAlerts(alerts, totalMME) {
-  const elderly = patientContext.age === '65-74' || patientContext.age === '75plus';
-  const veryElderly = patientContext.age === '75plus';
-  const renalImpaired = ['moderate', 'severe', 'dialysis'].includes(patientContext.renal);
-  const renalSevere   = ['severe', 'dialysis'].includes(patientContext.renal);
-  const hepaticImpaired = ['moderate', 'severe'].includes(patientContext.hepatic);
-  const hepaticSevere   = patientContext.hepatic === 'severe';
-  const has = (k) => ledger.some(e => e.drug === k);
+const has = (k) => ledger.some(e => e.drug === k);
+
+function addPatientContextAlerts(alerts, totalMME, ctx) {
+  const elderly = ctx.age === '65-74' || ctx.age === '75plus';
+  const veryElderly = ctx.age === '75plus';
+  const renalImpaired = ['moderate', 'severe', 'dialysis'].includes(ctx.renal);
+  const renalSevere   = ['severe', 'dialysis'].includes(ctx.renal);
+  const hepaticImpaired = ['moderate', 'severe'].includes(ctx.hepatic);
+  const hepaticSevere   = ctx.hepatic === 'severe';
 
   if (elderly && totalMME > 0) {
     alerts.push({
       severity: veryElderly ? 'severe' : 'normal',
-      title: `Older adult${veryElderly ? ' (≥75)' : ' (65–74)'}: start low, go slow`,
-      body: 'Older adults are more susceptible to opioid-induced sedation, confusion, constipation, and falls. Reduce initial doses ~25–50%, titrate slowly, and reassess function and cognition each visit.',
-      cite: 'AGS Beers Criteria; CDC 2022.',
+      title: `Older adult${veryElderly ? ' (≥75)' : ' (65–74)'}: extra caution`,
+      body: 'CDC 2022 advises additional caution when initiating opioids for patients aged ≥65 because of a potentially smaller therapeutic window between safe dosages and dosages associated with respiratory depression and overdose. Titrate slowly and reassess function and cognition.',
+      cite: 'CDC 2022 Rec 4 and Rec 8.',
+    });
+  }
+  if (veryElderly && has('tramadol')) {
+    alerts.push({
+      severity: 'normal',
+      title: 'Age >75 + tramadol: maximum 300 mg/day',
+      body: 'Do not exceed a total dose of 300 mg/day in patients over 75 years old.',
+      cite: 'Tramadol HCl tablets label §2.',
     });
   }
   if (elderly && has('meperidine')) {
     alerts.push({
       severity: 'severe',
-      title: 'Older adult + meperidine: Beers Criteria avoid',
-      body: 'AGS Beers Criteria specifically recommend against meperidine in older adults due to neurotoxicity risk from normeperidine accumulation. Choose an alternative opioid.',
-      cite: 'AGS Beers Criteria 2023.',
+      title: 'Older adult + meperidine: avoid',
+      body: 'Multiple doses of meperidine are contraindicated in the elderly because the neurotoxic metabolite normeperidine accumulates. Choose an alternative opioid.',
+      cite: 'UofT Opioid Equianalgesic Table (2014), meperidine comments.',
     });
   }
 
@@ -40,123 +54,172 @@ function addPatientContextAlerts(alerts, totalMME) {
       alerts.push({
         severity: 'severe',
         title: 'Renal impairment + meperidine: avoid',
-        body: 'Normeperidine clearance is renal. Accumulation in CKD or dialysis causes CNS toxicity (myoclonus, seizures). Avoid in this patient.',
-        cite: 'KDIGO; Meperidine PI.',
+        body: 'Normeperidine is renally excreted and accumulates in renal impairment, causing confusion, twitching and seizures. Multiple doses are contraindicated in renal insufficiency (UofT equianalgesic chart).',
+        cite: 'UofT Opioid Equianalgesic Table (2014), meperidine comments.',
       });
     }
     if (has('morphine')) {
       alerts.push({
         severity: 'severe',
         title: 'Renal impairment + morphine: accumulation risk',
-        body: 'M3G/M6G metabolites accumulate with reduced renal clearance and cause prolonged sedation and respiratory depression. Consider hydromorphone, fentanyl, methadone, or buprenorphine as renal-friendlier alternatives.',
-        cite: 'KDIGO; UpToDate.',
+        body: 'Active metabolites accumulate with reduced renal clearance and cause prolonged sedation and respiratory depression. Hydromorphone is preferred in renal disease (UofT chart).',
+        cite: 'UofT Opioid Equianalgesic Table (2014); CDC 2022 Rec 8.',
       });
     }
     if (has('codeine')) {
       alerts.push({
         severity: 'severe',
         title: 'Renal impairment + codeine: avoid',
-        body: 'Codeine and its active metabolite morphine + M6G accumulate with reduced renal clearance. Choose an alternative.',
-        cite: 'KDIGO.',
-      });
-    }
-    if (has('tramadol')) {
-      alerts.push({
-        severity: 'normal',
-        title: 'Renal impairment + tramadol: reduce dose',
-        body: 'In CrCl <30 mL/min, max 200 mg/day; active metabolite accumulates. Consider 50% dose reduction and extending interval to q12h.',
-        cite: 'Tramadol PI.',
+        body: 'Codeine is converted to morphine; morphine and its metabolites accumulate with reduced renal clearance. Choose an alternative.',
+        cite: 'CDC 2022 Rec 8.',
       });
     }
   }
-  if (renalSevere && has('hydromorphone')) {
+  if (renalSevere && has('tramadol')) {
     alerts.push({
       severity: 'normal',
-      title: 'Severe renal impairment + hydromorphone: monitor',
-      body: 'H3G metabolite accumulates but is less neurotoxic than morphine’s M3G. Hydromorphone is generally preferred over morphine in CKD; still reduce dose and extend interval.',
-      cite: 'KDIGO.',
+      title: 'CrCl <30 + tramadol: q12h, max 200 mg/day',
+      body: 'In creatinine clearance below 30 mL/min, increase the dosing interval to 12 hours with a maximum daily dose of 200 mg. Tramadol ER should not be used in severe renal impairment.',
+      cite: 'Tramadol HCl tablets and ER capsules labels.',
     });
+  }
+  if (renalImpaired || hepaticImpaired) {
+    if (has('hydromorphone')) {
+      alerts.push({
+        severity: 'normal',
+        title: 'Organ impairment + hydromorphone: start at ¼–½ dose',
+        body: 'Start patients with renal or hepatic impairment on one-fourth to one-half of the usual starting dose, depending on severity.',
+        cite: 'Dilaudid injection label §2.3–2.4.',
+      });
+    }
   }
 
   if (hepaticImpaired && totalMME > 0) {
     alerts.push({
       severity: hepaticSevere ? 'severe' : 'normal',
-      title: 'Hepatic impairment: reduce dose, prolonged half-life',
-      body: 'Most opioids undergo hepatic metabolism. Moderate–severe impairment prolongs half-life and elevates plasma levels. Reduce initial doses (often ~50%) and extend dosing intervals.',
-      cite: 'Drug-specific PIs.',
+      title: 'Hepatic impairment: reduce dose, extend interval',
+      body: 'Decreased clearance can cause accumulation to toxic levels. Use additional caution and consider a longer dosing interval, especially with ER/LA opioids.',
+      cite: 'CDC 2022 Rec 3 and Rec 8.',
     });
   }
   if (hepaticSevere) {
-    const hepAvoid = ['tramadol', 'tapentadol', 'meperidine'].filter(has);
+    const hepAvoid = ['tramadol', 'tapentadol'].filter(has);
     if (hepAvoid.length) {
       alerts.push({
         severity: 'severe',
-        title: `Severe hepatic + ${hepAvoid.join(' / ')}: avoid`,
-        body: 'These agents are contraindicated or strongly discouraged in severe hepatic impairment due to unpredictable kinetics (tramadol/tapentadol) or active-metabolite accumulation (meperidine).',
-        cite: 'Tramadol/Tapentadol/Meperidine PIs.',
+        title: `Severe hepatic impairment + ${hepAvoid.join(' / ')}: not recommended`,
+        body: 'Tapentadol is not recommended in severe hepatic impairment (Child-Pugh 10–15). Tramadol ER should not be used in severe hepatic impairment.',
+        cite: 'Nucynta tablets label; tramadol ER capsules label §8.6.',
+      });
+    }
+    if (ledger.some(e => e.drug === 'fentanyl' && e.route === 'TD')) {
+      alerts.push({
+        severity: 'severe',
+        title: 'Severe hepatic impairment + fentanyl patch: avoid',
+        body: 'Because of the long half-life of transdermal fentanyl and its hepatic metabolism, avoid use in severe hepatic impairment.',
+        cite: 'Fentanyl transdermal system label §8.',
       });
     }
   }
+  if (renalSevere && ledger.some(e => e.drug === 'fentanyl' && e.route === 'TD')) {
+    alerts.push({
+      severity: 'severe',
+      title: 'Severe renal impairment + fentanyl patch: avoid',
+      body: 'Because of the long half-life of transdermal fentanyl, avoid use in patients with severe renal impairment.',
+      cite: 'Fentanyl transdermal system label §8.',
+    });
+  }
 }
 
-export function buildSafetyAlerts(totalMME) {
+export function buildSafetyAlerts(totalMME, ctx = patientContext) {
   const alerts = [];
+  const riskFactors = [];
+  if (totalMME >= 50) riskFactors.push('≥50 MME/day');
+  if (ctx.benzo) riskFactors.push('concurrent benzodiazepine');
+  if (ctx.sleepApnea) riskFactors.push('sleep-disordered breathing');
+  if (ctx.odHistory) riskFactors.push('history of overdose or substance use disorder');
+  if (riskFactors.length && (totalMME > 0 || ledger.length)) {
+    alerts.push({
+      severity: totalMME >= 90 || riskFactors.length > 1 ? 'severe' : 'normal',
+      title: 'Offer naloxone',
+      body: `Risk factor${riskFactors.length > 1 ? 's' : ''} present: ${riskFactors.join('; ')}. CDC 2022: offer naloxone when prescribing opioids, particularly to patients with a history of overdose or substance use disorder, sleep-disordered breathing, higher dosages (e.g., ≥50 MME/day), or concurrent benzodiazepines, and provide overdose education to the patient and household members.`,
+      cite: 'CDC 2022 Rec 8.',
+    });
+  }
   if (totalMME >= 50) {
     alerts.push({
       severity: totalMME >= 90 ? 'severe' : 'normal',
-      title: 'Consider co-prescribing naloxone',
-      body: 'CDC and most pain guidelines recommend offering naloxone to patients on ≥50 MME/day, or with concurrent benzodiazepines, sleep apnea, prior overdose, or substance-use disorder. Counsel the patient and a household contact on use.',
-      cite: 'CDC 2022 Clinical Practice Guideline for Prescribing Opioids',
+      title: totalMME >= 90 ? 'High dosage: careful review' : '≥50 MME/day: pause and reassess',
+      body: 'CDC 2022: before increasing to ≥50 MME/day, pause and carefully reassess benefits and risks; at or above 50 MME/day add precautions such as more frequent follow-up. Increases beyond 50 MME/day are progressively more likely to yield diminishing returns. In observational studies, ≥100 MME/day was associated with 2.0–8.9 times the overdose risk of 1 to <20 MME/day. Check the PDMP.',
+      cite: 'CDC 2022 Rec 4 and supporting rationale.',
     });
   }
-  if (totalMME >= 90) {
+  if (ctx.benzo) {
     alerts.push({
       severity: 'severe',
-      title: 'High-risk dosing: careful review recommended',
-      body: 'Doses ≥90 MME/day carry meaningfully higher overdose risk. Reassess goals of pain therapy, check the PMP/PDMP, screen for concurrent sedatives, and consider tapering, adjunctive non-opioid therapies, or specialist input.',
-      cite: 'CDC 2022; SAMHSA',
+      title: 'Opioid + benzodiazepine',
+      body: 'CDC 2022 advises particular caution when prescribing benzodiazepines or other sedating medications with opioid pain medication.',
+      cite: 'CDC 2022 Rec 11.',
     });
   }
-  if (ledger.some(e => e.drug === 'methadone')) {
+  if (has('methadone')) {
     alerts.push({
       severity: 'severe',
       title: 'Methadone-specific cautions',
-      body: 'Long, highly variable half-life (8–60 h) → delayed steady state (5–7 days) and accumulation risk. Obtain baseline and periodic ECG to monitor QTc; avoid concurrent QT-prolonging drugs. Equianalgesic conversions are non-linear; involve a pain or palliative specialist for opioid-tolerant conversions.',
-      cite: 'Methadone PI; CDC; Fudin et al.',
+      body: 'Plasma elimination half-life 8–59 h; steady state takes at least 3–5 days. Potency relative to other opioids is nonlinear and increases with dose, and its conversion table cannot be used in reverse. Assess QT prolongation risk and consider ECG monitoring. Involve a pain or palliative specialist for conversions.',
+      cite: 'Methadone HCl tablets label §2.4; CDC 2022 Rec 3.',
     });
   }
-  if (ledger.some(e => e.drug === 'meperidine')) {
+  if (has('meperidine')) {
     alerts.push({
       severity: 'severe',
       title: 'Meperidine: generally avoid',
-      body: 'The metabolite normeperidine accumulates with prolonged use or renal impairment and causes CNS toxicity (tremor, myoclonus, seizures). Most pain guidelines and the AGS Beers Criteria recommend against meperidine for routine analgesia, especially in older adults. Choose an alternative opioid.',
-      cite: 'AGS Beers Criteria; ASPMN; APS',
+      body: 'Normeperidine has half the analgesic potency of meperidine but 2–3 times the neurotoxic potential. Risk increases above 600 mg/24 h or beyond 48 hours of use. Not recommended for chronic use.',
+      cite: 'UofT Opioid Equianalgesic Table (2014).',
     });
   }
-  if (ledger.some(e => e.drug === 'tramadol')) {
+  if (has('tramadol')) {
     alerts.push({
       severity: 'normal',
-      title: 'Tramadol: interaction & seizure cautions',
-      body: 'Lowers seizure threshold and can precipitate serotonin syndrome with SSRIs/SNRIs/MAOIs/triptans/linezolid. Analgesic effect depends on CYP2D6 metabolism; ultra-rapid metabolizers and children are at higher risk for sedation/respiratory depression.',
-      cite: 'Tramadol PI; FDA Drug Safety Communications',
+      title: 'Tramadol: seizure and serotonin syndrome risk',
+      body: 'Lowers seizure threshold and can cause serotonin syndrome with serotonergic drugs. Analgesia depends on CYP2D6 metabolism. Do not exceed 400 mg/day (IR) or 300 mg/day (ER).',
+      cite: 'Tramadol HCl tablets and ER capsules labels.',
     });
   }
-  if (ledger.some(e => e.drug === 'codeine')) {
+  if (has('codeine')) {
     alerts.push({
       severity: 'normal',
-      title: 'Codeine: CYP2D6-dependent, avoid in children',
-      body: 'Variable CYP2D6 conversion to morphine makes effect unpredictable; ultra-rapid metabolizers are at risk for opioid toxicity. Contraindicated post-tonsillectomy/adenoidectomy in children and in breastfeeding mothers.',
-      cite: 'FDA Boxed Warning (2017)',
+      title: 'Codeine: CYP2D6-dependent',
+      body: 'Conversion to morphine varies with CYP2D6 genotype; ultra-rapid metabolizers are at risk of toxicity. Maximum 360 mg per 24 hours.',
+      cite: 'Codeine sulfate tablets label.',
     });
   }
   if (ledger.some(e => e.drug === 'fentanyl' && e.route === 'TD')) {
     alerts.push({
       severity: 'normal',
-      title: 'Fentanyl patch: opioid-naïve contraindication',
-      body: 'Transdermal fentanyl is only for opioid-tolerant patients (≥60 mg/day oral morphine equivalent for ≥1 week). Heat (fever, heating pad, hot tub) increases absorption and overdose risk. Residual release continues 12–24 hours after patch removal.',
-      cite: 'Duragesic PI',
+      title: 'Fentanyl patch: opioid-tolerant patients only',
+      body: 'Opioid-tolerant means at least 60 mg oral morphine/day (or 30 mg oxycodone, 8 mg hydromorphone, 25 mcg/hr fentanyl, or equivalent) for one week or longer. After removal, serum fentanyl falls only about 50% in 20–27 hours. Heat increases absorption.',
+      cite: 'Fentanyl transdermal system label §1, §12.3.',
     });
   }
-  addPatientContextAlerts(alerts, totalMME);
+  const mixed = ['nalbuphine', 'butorphanol'].filter(has);
+  const fullAgonist = ledger.some(e => !['nalbuphine', 'butorphanol', 'buprenorphine'].includes(e.drug));
+  if (mixed.length && fullAgonist) {
+    alerts.push({
+      severity: 'severe',
+      title: `${mixed.join(' / ')} with a full agonist`,
+      body: 'Mixed agonist/antagonists given to patients receiving full opioid agonists may reduce analgesia and precipitate withdrawal. Avoid the combination.',
+      cite: 'Nalbuphine injection and butorphanol nasal spray labels.',
+    });
+  }
+  if (has('buprenorphine')) {
+    alerts.push({
+      severity: 'normal',
+      title: 'Buprenorphine is not counted in MME',
+      body: 'Buprenorphine products are excluded from the CDC MME table because of partial µ-agonist activity and ceiling effects. Its contribution is not reflected in the total.',
+      cite: 'CDC 2022 Table, footnote 6.',
+    });
+  }
+  addPatientContextAlerts(alerts, totalMME, ctx);
   return alerts;
 }

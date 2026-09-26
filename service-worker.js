@@ -1,7 +1,7 @@
 'use strict';
 
 // Bump CACHE_VERSION on each release of static assets to invalidate old caches.
-const CACHE_VERSION = 'v11';
+const CACHE_VERSION = 'v12';
 const CACHE_NAME = `mme-${CACHE_VERSION}`;
 
 // App-shell files. Module sources live under js/ and are listed individually

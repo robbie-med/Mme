@@ -574,6 +574,45 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
 }
 .conv-note:last-child { margin-bottom: 0; }
 
+/* Step-by-step conversion math */
+.conv-steps {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: grid;
+  gap: 4px;
+}
+.conv-step {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 10px;
+  font-size: 13px;
+  align-items: baseline;
+}
+.conv-step-k {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.conv-step-v { color: var(--text); font-variant-numeric: tabular-nums; }
+.conv-warnings { display: grid; gap: 6px; margin-bottom: 10px; }
+.conv-warning, .conv-blocked {
+  padding: 8px 12px;
+  background: var(--risk-high-bg);
+  border-left: 3px solid var(--risk-high-fg);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+.conv-blocked { margin-top: 12px; font-weight: 600; }
+@media (max-width: 640px) {
+  .conv-step { grid-template-columns: 1fr; gap: 0; }
+}
+
 @media (max-width: 640px) {
   .conv-order-line { grid-template-columns: 1fr; gap: 2px; }
 }
@@ -1209,3 +1248,18 @@ body.view-settings  .show-in-settings { display: revert; }
   .simple-med .derivation-panel { background: #fff !important; }
   .refs { display: none; }
 }
+
+/* Patient-context risk-factor checkboxes */
+.ctx-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.ctx-flags-label { font-weight: 600; color: var(--muted); }
+.ctx-flags .check-label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.about-sources { font-size: 13px; line-height: 1.5; padding-left: 18px; }
+.about-sources li { margin-bottom: 4px; }
+.pk-time-fixed { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
