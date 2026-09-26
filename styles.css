@@ -1263,3 +1263,7 @@ body.view-settings  .show-in-settings { display: revert; }
 .about-sources { font-size: 13px; line-height: 1.5; padding-left: 18px; }
 .about-sources li { margin-bottom: 4px; }
 .pk-time-fixed { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ref-links { font-style: normal; font-size: 11px; }
+.ref-links a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.conv-sources { margin-top: 8px; color: var(--muted); }
+.about-sources a { word-break: break-all; color: var(--accent); }

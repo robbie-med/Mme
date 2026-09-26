@@ -264,3 +264,28 @@ test('previewMME matches computeEntryMME for standing entries', () => {
   near(previewMME('oxycodone', 'PO', 10, 2), row(standing('oxycodone', 'PO', 20)).mme);
   near(previewMME('fentanyl', 'TD', 25, 1), 60);
 });
+
+// ---------- references ----------
+
+const { REFS } = await import('../js/refs.js');
+const { buildSafetyAlerts } = await import('../js/safety.js');
+const { TABLES } = await import('../js/tables.js');
+
+test('every reference has an https URL and every cited key exists', () => {
+  for (const [k, r] of Object.entries(REFS)) {
+    assert.match(r.url, /^https:\/\//, k);
+    assert.ok(r.title && r.short, k);
+  }
+  const used = new Set();
+  Object.values(TABLES).forEach(t => (t.refs || []).forEach(k => used.add(k)));
+  const targets = ['morphine|PO', 'hydromorphone|PO', 'oxycodone|PO', 'tramadol|PO', 'tapentadol|PO',
+    'codeine|PO', 'hydrocodone|PO', 'morphine|IV', 'hydromorphone|IV', 'fentanyl|IV', 'fentanyl|TD', 'methadone|PO'];
+  for (const t of targets) {
+    const c = computeConversion(rowsFor(standing('morphine', 'PO', 200)), t, 50);
+    assert.ok(c.refs.length > 0, t);
+    c.refs.forEach(k => used.add(k));
+  }
+  buildSafetyAlerts(120, { age: '75plus', renal: 'dialysis', hepatic: 'severe', benzo: true, sleepApnea: true, odHistory: true })
+    .forEach(a => { assert.ok(a.refs && a.refs.length, a.title); a.refs.forEach(k => used.add(k)); });
+  used.forEach(k => assert.ok(REFS[k], `unknown ref key ${k}`));
+});

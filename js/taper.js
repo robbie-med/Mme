@@ -9,23 +9,27 @@ import { previewMME, formatNum } from './mme.js';
 import { floorToStep, unitFor, IR_FORMS } from './conversion.js';
 import { getRiskTier } from './safety.js';
 import { escapeHtml } from './util.js';
+import { REFS, refLinksHtml } from './refs.js';
 
 export const TAPER_PRESETS = {
   'cdc-long': {
     label: '10% of original dose per month (long-term use, ≥1 year)',
     cite: 'CDC 2022: tapers of ~10% per month or slower are better tolerated after long-term use (≥1 year).',
+    refs: ['cdc2022'],
     intervalDays: 28,
     next: (orig, prev, k) => orig * (1 - 0.10 * k),
   },
   'cdc-short': {
     label: '10% of original per week, then 10% of remaining (weeks–months of use)',
     cite: 'CDC 2022: for shorter durations, 10% of the original dose per week or slower until ~30% of the original dose, then ~10% of the remaining dose weekly.',
+    refs: ['cdc2022'],
     intervalDays: 7,
     next: (orig, prev, k) => (prev > orig * 0.30 + 1e-9 ? Math.max(orig * (1 - 0.10 * k), orig * 0.30) : prev * 0.90),
   },
   'label-max': {
     label: '25% of current dose every 2 weeks (fastest labeled rate)',
     cite: 'Opioid labels (e.g. fentanyl patch §2.9): decrease by no more than 25% of the total daily dose every 2 to 4 weeks.',
+    refs: ['lblFentanylTD'],
     intervalDays: 14,
     next: (orig, prev) => prev * 0.75,
   },
@@ -169,7 +173,7 @@ export function wireTaperControls(root) {
     const schedule = buildTaperSchedule({ primary, presetKey, endpointPct });
     out.innerHTML = renderTaperTable(schedule, primary);
     const cite = root.querySelector('#taper-cite');
-    if (cite) cite.textContent = TAPER_PRESETS[presetKey].cite + ' Reassess pain, function and withdrawal before each step; pause or slow as needed.';
+    if (cite) cite.innerHTML = `${escapeHtml(TAPER_PRESETS[presetKey].cite)} Reassess pain, function and withdrawal before each step; pause or slow as needed. <span class="ref-links">${refLinksHtml(TAPER_PRESETS[presetKey].refs)}</span>`;
     out._schedule = schedule;
   };
   ['taper-preset', 'taper-endpoint'].forEach(id => {
@@ -202,6 +206,7 @@ export function renderTaperText(schedule, primary, presetKey) {
   if (schedule.truncated) lines.push('  (endpoint not reached within the schedule shown)');
   lines.push('');
   lines.push(preset.cite);
+  (preset.refs || []).forEach(k => lines.push(`${REFS[k].title} ${REFS[k].url}`));
   lines.push('Reassess pain control, function, and withdrawal symptoms at each step before proceeding.');
   return lines.join('\n');
 }

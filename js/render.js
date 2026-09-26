@@ -12,6 +12,7 @@ import {
 } from './conversion.js';
 import { buildTaperSection, wireTaperControls } from './taper.js';
 import { escapeHtml } from './util.js';
+import { REFS, refLinksHtml, refListHtml } from './refs.js';
 
 function wireRowExpansion(wrap) {
   wrap.querySelectorAll('[data-expand]').forEach(btn => {
@@ -24,15 +25,21 @@ function wireRowExpansion(wrap) {
   });
 }
 
+// Citation text + links for one entry's derivation panel (HTML).
 function citationFor(entry) {
   const t = getActiveTable();
   const parts = [`${t.label}: ${t.cite}`];
+  const keys = [...(t.refs || [])];
   const rg = getFactorRange(entry.drug, entry.route, 0);
-  if (entry.drug === 'methadone' && entry.route === 'IV') parts.push(SOURCES.methadoneLabel);
-  if (entry.drug === 'nalbuphine') parts.push(SOURCES.nalbuphineLabel);
-  if (rg && rg.lo !== rg.hi) parts.push(`Parenteral range: ${SOURCES.uoft}`);
-  if (entry.drug === 'fentanyl' && entry.route === 'TD') parts.push('Patch counted for 72 h of wear from its most recent application (patch label).');
-  return parts.join(' ');
+  if (entry.drug === 'methadone' && entry.route === 'IV') { parts.push(SOURCES.methadoneLabel); keys.push('lblMethadone'); }
+  if (entry.drug === 'nalbuphine') { parts.push(SOURCES.nalbuphineLabel); keys.push('lblNalbuphine'); }
+  if (entry.drug === 'butorphanol') keys.push('lblButorphanol');
+  if (rg && rg.lo !== rg.hi) { parts.push(`Parenteral range: ${SOURCES.uoft}`); keys.push('uoft'); }
+  if (entry.drug === 'fentanyl' && entry.route === 'TD') {
+    parts.push('Patch counted for 72 h of wear from its most recent application (patch label).');
+    keys.push('lblFentanylTD');
+  }
+  return `${escapeHtml(parts.join(' '))}<div class="ref-links">Sources: ${refLinksHtml(keys)}</div>`;
 }
 
 function windowStep(r, u) {
@@ -67,7 +74,7 @@ function buildDerivation(r) {
   parts.push(`<div class="d-step"><span class="d-label">Calculation</span><span class="d-value">${escapeHtml(r.factorDescription || '—')}</span></div>`);
   parts.push(`<div class="d-step d-result"><span class="d-label">MME / day</span><span class="d-value"><strong>${r.mme == null ? '—' : formatNum(r.mme)}</strong>${r.mmeLow != null && r.mmeLow !== r.mme ? ` <span class="muted">(conversion basis ${formatNum(r.mmeLow)})</span>` : ''}</span></div>`);
   r.notes.forEach(n => parts.push(`<div class="d-step"><span class="d-label">Note</span><span class="d-value">${escapeHtml(n)}</span></div>`));
-  parts.push(`<div class="d-cite">${escapeHtml(citationFor(e))}</div>`);
+  parts.push(`<div class="d-cite">${citationFor(e)}</div>`);
   return parts.join('');
 }
 
@@ -138,7 +145,7 @@ function renderSafety(totalMME) {
     <div class="safety-alert ${a.severity === 'severe' ? 'severe' : ''}">
       <h4>${escapeHtml(a.title)}</h4>
       <p>${escapeHtml(a.body)}</p>
-      <div class="alert-cite">${escapeHtml(a.cite)}</div>
+      <div class="alert-cite">${escapeHtml(a.cite)}${a.refs && a.refs.length ? ` <span class="ref-links">${refLinksHtml(a.refs)}</span>` : ''}</div>
     </div>`).join('');
 }
 
@@ -334,7 +341,9 @@ function renderConversion(rows, totalMME) {
       ${buildBeforeAfter(rows, totalMME, conv)}
       ${conv.orders && conv.orders.primary ? buildTaperSection(conv.orders.primary, conv.projectedMME) : ''}`;
   }
-  el.innerHTML = `${head}${warn}${renderSteps(steps)}${body}`;
+  const sources = conv.refs && conv.refs.length
+    ? `<div class="conv-sources ref-links">Sources: ${refLinksHtml(conv.refs)}</div>` : '';
+  el.innerHTML = `${head}${warn}${renderSteps(steps)}${sources}${body}`;
 
   const applyBtn = el.querySelector('#apply-regimen-btn');
   if (applyBtn) applyBtn.addEventListener('click', () => {
@@ -351,7 +360,12 @@ function renderReferenceTable() {
   const cap = document.getElementById('ref-table-caption');
   if (!body) return;
   const t = getActiveTable();
-  if (cap) cap.textContent = `Active table: ${t.label}. ${t.cite}`;
+  if (cap) cap.innerHTML = `Active table: ${escapeHtml(t.label)}. ${escapeHtml(t.cite)} <span class="ref-links">${refLinksHtml([...(t.refs || []), 'uoft', 'lblMethadone', 'lblNalbuphine'])}</span>`;
+  const about = document.getElementById('about-sources');
+  if (about && !about.dataset.filled) {
+    about.innerHTML = refListHtml(Object.keys(REFS));
+    about.dataset.filled = '1';
+  }
   const rows = [];
   Object.keys(DRUGS).forEach(drug => {
     const routes = getRoutesForDrug(drug);

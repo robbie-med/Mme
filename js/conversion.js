@@ -22,6 +22,7 @@ import { ledger, addManualEntry } from './ledger.js';
 import { getRiskTier } from './safety.js';
 import { patientContext } from './settings.js';
 import { escapeHtml } from './util.js';
+import { ER_LABEL_REF } from './refs.js';
 
 export const OPIOID_TOLERANT_MME = 60;   // FDA patch / ER labels: ≥60 mg oral morphine/day for ≥1 week
 export const METHADONE_START_CAP = 30;   // APS 2014: no more than 30–40 mg/day at start
@@ -160,13 +161,19 @@ export function computeConversion(rows, target, reductionPct, ctx = patientConte
     notes.push('Converting from a fentanyl patch: serum fentanyl falls only ~50% in 20–27 h after removal (patch label). The hydromorphone ER label starts the new opioid 18 h after patch removal and reduces its calculated dose by 50%.');
   }
 
-  const out = { drug, route, label, table: table.label, riskMME, basisMME, steps, warnings, notes, blocked };
+  // Reference keys (js/refs.js) for everything this conversion relies on.
+  const refs = [...(table.refs || [])];
+  if (counted.some(r => r.factorLow !== r.factorHigh)) refs.push('uoft');
+  if (fromMethadone) refs.push('lblMethadone');
+  if (fromPatch) refs.push('lblFentanylTD', 'lblHydromorphER');
+  const out = { drug, route, label, table: table.label, riskMME, basisMME, steps, warnings, notes, blocked, refs };
 
   // --- Methadone target ---
   if (drug === 'methadone') {
     if (route !== 'PO') return { ...out, error: 'Only oral methadone is supported as a target.' };
     const m = methadoneFromMED(basisMME);
     out.method = 'methadone-label';
+    refs.push('lblMethadone', 'aps2014', 'cdc2022');
     out.reductionApplied = 0;
     const b = m.band;
     steps.push({ k: 'Methadone label Table 1', v: `oral MED ${b.label} → ${b.lowPct != null ? `${b.lowPct}–${b.highPct}%` : `<${b.highPct}%`} of MED; low end ${m.pct}% × ${formatNum(basisMME)} = ${formatNum(m.raw)} mg/day` });
@@ -182,6 +189,7 @@ export function computeConversion(rows, target, reductionPct, ctx = patientConte
   } else if (drug === 'fentanyl' && route === 'TD') {
     const p = patchFromMED(basisMME);
     out.method = 'patch-label';
+    refs.push('lblFentanylTD');
     out.reductionApplied = 0;
     if (p.reason === 'not-tolerant') {
       return { ...out, blocked: `Fentanyl patches are contraindicated in patients who are not opioid-tolerant (<${OPIOID_TOLERANT_MME} mg oral morphine/day for ≥1 week; patch label). Current conversion basis is ${formatNum(basisMME)} MME/day.`, orders: null };
@@ -200,6 +208,8 @@ export function computeConversion(rows, target, reductionPct, ctx = patientConte
     const adj = basisMME * (1 - red / 100);
     const tf = getFactorRange(drug, route, 0);
     out.method = 'factor';
+    refs.push('cdc2022', 'lblDilaudidInj', 'lblHydromorphER');
+    if (tf.lo !== tf.hi) refs.push('uoft');
     out.reductionApplied = red;
     steps.push({ k: 'Cross-tolerance', v: red > 0 ? `− ${red}% → ${formatNum(adj)} MME/day` : 'none applied (CDC advises a substantially lower dose than the calculated MME)' });
     const tfDesc = tf.lo !== tf.hi ? `${formatNum(tf.hi)} (upper of ${formatNum(tf.lo)}–${formatNum(tf.hi)}, the conservative choice for a target)` : formatNum(tf.hi);
@@ -213,6 +223,7 @@ export function computeConversion(rows, target, reductionPct, ctx = patientConte
     else out.orders = factorOrders(drug, route, daily, basisMME, ctx);
   }
 
+  if (out.orders && out.orders.refs) refs.push(...out.orders.refs);
   if (blocked) out.orders = null;
   if (out.orders && out.orders.primary) {
     const p = out.orders.primary;
@@ -246,6 +257,7 @@ function methadoneOrders(daily) {
     breakthrough: 'Use a separate immediate-release opioid for breakthrough pain; do not use methadone PRN.',
     notes, warnings,
     primary: { drug: 'methadone', route: 'PO', dose: per, perDay },
+    refs: ['lblMethadone', 'cdc2022'],
   };
 }
 
@@ -262,6 +274,7 @@ function patchOrders(rate) {
     ],
     warnings: [],
     primary: { drug: 'fentanyl', route: 'TD', dose: rate, perDay: 1 },
+    refs: ['lblFentanylTD', 'myers2008'],
   };
 }
 
@@ -279,6 +292,7 @@ function fentanylInfusionOrders(dailyMcg) {
     notes: ['Use a monitored setting. The IV fentanyl factor is uncertain (0.1–0.3 MME/mcg); the upper value is used here so the rate is on the low side.'],
     warnings: [],
     primary: { drug: 'fentanyl', route: 'IV', dose: rate, perDay: 24 },
+    refs: ['uoft', 'cms2017'],
   };
 }
 
@@ -304,6 +318,7 @@ function factorOrders(drug, route, daily, basisMME, ctx) {
   const scheduled = [];
   const notes = [];
   const warnings = [];
+  const refs = ['myers2008'];
   let primary = null;
 
   // Apply labeled maximums to the daily amount we schedule.
@@ -313,6 +328,7 @@ function factorOrders(drug, route, daily, basisMME, ctx) {
     warnings.push(`Calculated ${formatNum(daily)} ${u}/day exceeds the labeled maximum (${irMax.why}). Orders are capped at ${irMax.max} ${u}/day, which is LESS than the calculated equivalent; ${label} is a poor target at this MME.`);
     schedDaily = irMax.max;
   }
+  if (irMax) refs.push({ tramadol: 'lblTramadol', tapentadol: 'lblNucynta', codeine: 'lblCodeine' }[drug]);
 
   // Extended-release option: opioid-tolerant patients only (conservative
   // reading of the ER labels and CDC Rec 3).
@@ -332,6 +348,7 @@ function factorOrders(drug, route, daily, basisMME, ctx) {
       scheduled.push(erLine);
       primary = { drug, route: 'PO', dose: per, perDay: er.perDay, er: true };
       notes.push(`ER product: ${er.src}.`);
+      refs.push(ER_LABEL_REF[drug]);
     }
   }
 
@@ -362,11 +379,14 @@ function factorOrders(drug, route, daily, basisMME, ctx) {
   notes.push('Rescue doses of 10–20% of the total daily dose (Curr Oncol 2008). Set the PRN interval per institutional policy.');
   if (drug === 'hydrocodone' || drug === 'oxycodone' || drug === 'codeine' || drug === 'tramadol') {
     notes.push('If an acetaminophen combination product is used, keep total acetaminophen ≤4,000 mg/day across all products (combination-product labels; CDC 2022 Rec 4).');
+    refs.push('lblHydrocodoneApap', 'cdc2022');
   }
   if (drug === 'hydromorphone' && route !== 'PO') {
     notes.push('Hydromorphone injection label: when converting from another opioid, reduce the calculated dose by one-half; IV starting doses 0.2–1 mg.');
+    refs.push('lblDilaudidInj');
   }
-  return { scheduled, breakthrough, notes, warnings, primary };
+  if (drug === 'tramadol' && (ctx.renal === 'severe' || ctx.renal === 'dialysis' || ctx.age === '75plus')) refs.push('lblTramadol');
+  return { scheduled, breakthrough, notes, warnings, primary, refs };
 }
 
 // ---------- rendering ----------

@@ -10,6 +10,7 @@ import { view, VIEWS } from './views.js';
 import { computeConversion } from './conversion.js';
 import { getRiskTier, buildSafetyAlerts } from './safety.js';
 import { getRowsForActiveView, getWindowSettings } from './render.js';
+import { refTextLines } from './refs.js';
 
 let suppressHashSync = false;
 
@@ -114,6 +115,7 @@ function buildClinicalNote(rows, totalMME) {
   const tierLabel = tier.label + (totalMME > 0 ? ` (${tier.explain})` : '');
   lines.push(`Total: ${formatNum(totalMME)} MME / day  [${tierLabel}]`);
 
+  const refKeys = [...(table.refs || [])];
   const targetSel = document.getElementById('target-drug');
   const reductionSel = document.getElementById('reduction');
   if (targetSel && targetSel.value && totalMME > 0) {
@@ -136,6 +138,7 @@ function buildClinicalNote(rows, totalMME) {
         conv.orders.notes.forEach(n => lines.push(`  Note: ${n}`));
       }
       conv.notes.forEach(n => lines.push(`  Note: ${n}`));
+      refKeys.push(...(conv.refs || []));
     }
   }
 
@@ -143,11 +146,12 @@ function buildClinicalNote(rows, totalMME) {
   if (alerts.length) {
     lines.push('');
     lines.push('Safety considerations:');
-    alerts.forEach(a => lines.push(`  • ${a.title}: ${a.body} [${a.cite}]`));
+    alerts.forEach(a => { lines.push(`  • ${a.title}: ${a.body} [${a.cite}]`); refKeys.push(...(a.refs || [])); });
   }
 
   lines.push('');
-  lines.push(`Source: ${table.cite}`);
+  lines.push('References:');
+  refTextLines(refKeys).forEach(l => lines.push(l));
   lines.push('Equianalgesic ratios are population estimates. Not a substitute for clinical judgement.');
   return lines.join('\n');
 }

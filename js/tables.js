@@ -63,6 +63,8 @@ export const TABLES = {
   cdc: {
     label: 'CDC 2022',
     cite: SOURCES.cdc2022,
+    // CMS supplies the drugs the CDC table omits (meperidine, levorphanol, …).
+    refs: ['cdc2022', 'cms2017'],
     factors: {
       ...COMMON,
       hydromorphone: { PO: 5, ...parenteral(HYDROMORPHONE_PAR) },
@@ -76,6 +78,7 @@ export const TABLES = {
   cms: {
     label: 'CMS 2017 (graduated methadone)',
     cite: SOURCES.cms2017,
+    refs: ['cms2017'],
     factors: {
       ...COMMON,
       hydromorphone: { PO: 4, ...parenteral(HYDROMORPHONE_PAR) },

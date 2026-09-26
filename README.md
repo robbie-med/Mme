@@ -281,22 +281,45 @@ their values could not be traced to a published source. Old links with
 
 ## Sources
 
-- Dowell D, et al. CDC Clinical Practice Guideline for Prescribing Opioids
-  for Pain, United States, 2022. MMWR Recomm Rep 2022;71(RR-3). Table;
-  Recommendations 4, 5, 8, 11.
-- CMS / CDC Opioid Oral MME Conversion Factors (CDC compilation, 2017
-  version), including graduated methadone factors.
-- FDA prescribing information via DailyMed: fentanyl transdermal system;
-  methadone HCl tablets; Dilaudid (hydromorphone) injection; hydromorphone
-  ER tablets; OxyContin; morphine sulfate ER; Hysingla ER; oxymorphone ER;
-  Nucynta and Nucynta ER; tramadol tablets and ER capsules; codeine sulfate;
-  nalbuphine injection; butorphanol nasal spray; hydrocodone/acetaminophen.
-- University of Toronto Department of Surgery. Opioid Equianalgesic Table,
-  Nov 2014 (parenteral equivalences).
-- Chou R, et al. Methadone safety: a clinical practice guideline from the
-  American Pain Society. J Pain 2014;15:321–37.
-- Myers J, Shetty N. Going beyond efficacy: strategies for cancer pain
-  management. Curr Oncol 2008;15 Suppl 1:S41–9.
+Every factor and rule traces to one of these (links checked 2026-09-26).
+The same list, with links, is in the app's About pane and in `js/refs.js`.
+
+- Dowell D, et al. [CDC Clinical Practice Guideline for Prescribing Opioids
+  for Pain — United States, 2022](https://www.cdc.gov/mmwr/volumes/71/rr/rr7103a1.htm).
+  MMWR Recomm Rep 2022;71(RR-3). Table; Recommendations 3, 4, 5, 8, 11.
+  ([PubMed Central copy](https://pmc.ncbi.nlm.nih.gov/articles/PMC9639433/))
+- CMS. [Opioid Oral Morphine Milligram Equivalent (MME) Conversion
+  Factors](https://www.hhs.gov/guidance/document/opioid-oral-morphine-milligram-equivalent-mme-conversion-factors-0)
+  (CDC compilation, 2017 version; HHS Guidance Portal).
+  ([PDF of the table, Utah Medicaid copy](https://medicaid-documents.dhhs.utah.gov/Documents/files/Opioid-Morphine-EQ-Conversion-Factors.pdf))
+- University of Toronto, Department of Surgery. [Opioid Equianalgesic
+  Table](https://surgery.utoronto.ca/sites/default/files/Opioid%20Equianalgesic%20Chart%20Nov%202014.pdf)
+  (Nov 2014). Parenteral equivalences.
+- Chou R, et al. [Methadone safety: a clinical practice guideline from the
+  American Pain Society](https://pubmed.ncbi.nlm.nih.gov/24685458/). J Pain
+  2014;15(4):321–37. [doi:10.1016/j.jpain.2014.01.494](https://doi.org/10.1016/j.jpain.2014.01.494)
+- Myers J, Shetty N. [Going beyond efficacy: strategies for cancer pain
+  management](https://pmc.ncbi.nlm.nih.gov/articles/PMC2216422/). Curr Oncol
+  2008;15(Suppl 1):S41–S49. Breakthrough dose 10–20%.
+
+FDA prescribing information (DailyMed):
+
+- [Fentanyl transdermal system](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=e15a7e9b-8025-49dd-9a6d-bafcccf1959f): opioid tolerance, patch conversion Table 2, strengths, wear time, taper
+- [Methadone HCl tablets](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=eddf7077-02fb-4771-9823-31984f4ff2bb): conversion Table 1, IV:PO 1:2, titration
+- [Dilaudid (hydromorphone) injection](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=9eebd88a-5632-460f-b7b6-26c8a180540d): 50% reduction, IV starting doses, organ impairment
+- [Hydromorphone HCl ER tablets](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=780a2616-0392-4715-bc50-71799bea1957): once daily, strengths, conversion from patch
+- [OxyContin](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=bfdfe235-d717-4855-a3c8-a13d26dadede): q12h, strengths
+- [Morphine sulfate ER tablets](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=533034fd-c8e7-495b-8874-0db41bd1e65a): q8–12h, strengths
+- [Hysingla ER](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=b7d23ac2-e776-9f62-3290-c64c2d6eb353): once daily, strengths
+- [Oxymorphone HCl ER tablets](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=3f4e703a-e398-42fd-8759-e398c79955f1): q12h, strengths
+- [Nucynta](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=80938c30-9fe3-4c7d-9d9c-5476638cfb2d): 600 mg/day maximum, hepatic impairment
+- [Nucynta ER](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=c3d04d70-0155-4147-9ce4-a3b1fad4b373): q12h, 500 mg/day maximum
+- [Tramadol HCl tablets](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=8ec4e4e5-a56e-4198-8428-6b770b9bf27d): 400 / 300 / 200 mg/day maximums
+- [Tramadol HCl ER capsules](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=c0bc7218-3fd0-4646-96f4-25355fc84aa9): once daily, 300 mg/day, renal/hepatic
+- [Codeine sulfate tablets](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=5819bdf7-300e-45b8-8f3a-447b53656293): 360 mg/day maximum, strengths
+- [Nalbuphine HCl injection](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=a99fe500-f52b-483c-807c-178f1a78a02b): potency vs morphine, withdrawal
+- [Butorphanol tartrate nasal spray](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=b8e48063-0b40-ee43-85c1-4ef2de80c404): withdrawal with full agonists
+- [Hydrocodone bitartrate and acetaminophen](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=995a6cc7-8b72-4d35-b3b4-8c5752438fb7): acetaminophen 4,000 mg/day
 
 ## Tests
 
