@@ -1,7 +1,7 @@
 'use strict';
 
 // Bump CACHE_VERSION on each release of static assets to invalidate old caches.
-const CACHE_VERSION = 'v13';
+const CACHE_VERSION = 'v14';
 const CACHE_NAME = `mme-${CACHE_VERSION}`;
 
 // App-shell files. Module sources live under js/ and are listed individually
@@ -10,6 +10,13 @@ const APP_SHELL = [
   './',
   'index.html',
   'styles.css',
+  'fonts/fonts.css',
+  'fonts/atkinson-hyperlegible-next-normal-latin.woff2',
+  'fonts/atkinson-hyperlegible-next-normal-latin-ext.woff2',
+  'fonts/atkinson-hyperlegible-next-italic-latin.woff2',
+  'fonts/atkinson-hyperlegible-next-italic-latin-ext.woff2',
+  'fonts/atkinson-hyperlegible-mono-normal-latin.woff2',
+  'fonts/atkinson-hyperlegible-mono-normal-latin-ext.woff2',
   'js/main.js',
   'js/drugs.js',
   'js/tables.js',

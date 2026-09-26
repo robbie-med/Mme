@@ -42,11 +42,14 @@
   --shadow: 0 1px 2px rgba(60, 40, 20, 0.06), 0 1px 1px rgba(60, 40, 20, 0.04);
   --shadow-elev: 0 2px 10px rgba(60, 40, 20, 0.08);
 
-  /* Display serif for the human-voiced headings only (h1, card h2,
-     about copy). Body, tables, and numerals stay system-sans so data
-     scanning isn't compromised. */
-  --font-display: "Iowan Old Style", "Palatino", "Hoefler Text", "Charter", Georgia, "Times New Roman", serif;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Atkinson Hyperlegible Next (Braille Institute) throughout: designed
+     so easily confused glyphs (1 l I, 0 O, 5 S, 8 B) stay distinct, which
+     matters when reading doses. Headings use heavier weights of the same
+     family; calculation text uses the matching Mono. Self-hosted in
+     fonts/ (see fonts/fonts.css) so the offline app keeps its type. */
+  --font-sans: "Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 /* Tabular numerals everywhere a number lives: clinical scanning */
@@ -55,6 +58,9 @@
 input[type="number"] { font-variant-numeric: tabular-nums; }
 
 * { box-sizing: border-box; }
+
+/* Form controls don't inherit the page font by default. */
+button, input, select, textarea { font-family: inherit; }
 
 html, body {
   margin: 0;
@@ -83,18 +89,9 @@ header h1 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -0.005em;
+  font-weight: 750;
+  letter-spacing: -0.015em;
   color: var(--text);
-}
-
-header .subtitle {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 400;
-  font-style: italic;
-  letter-spacing: 0.01em;
 }
 
 main {
@@ -121,8 +118,8 @@ main {
   margin: 0 0 12px;
   font-family: var(--font-display);
   font-size: 19px;
-  font-weight: 600;
-  letter-spacing: -0.005em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--text);
 }
 
@@ -157,7 +154,7 @@ label { font-size: 14px; color: var(--muted); display: block; margin-bottom: 6px
 
 textarea {
   width: 100%;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -297,11 +294,18 @@ table.meds tbody tr:hover { background: var(--surface-1); }
 table.meds td.num { text-align: right; font-variant-numeric: tabular-nums; }
 table.meds td.mme { font-weight: 600; color: var(--accent); }
 
+.calc-detail {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  min-width: 220px;
+  line-height: 1.45;
+}
 .admin-detail {
   font-size: 12px;
   color: var(--muted);
   margin-top: 4px;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -426,7 +430,7 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
 .d-admins {
   margin-top: 4px;
   padding-left: 4px;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--muted);
   max-height: 200px;
@@ -462,7 +466,7 @@ table.meds td.mme { font-weight: 600; color: var(--accent); }
   align-items: baseline;
 }
 .t-name { font-weight: 600; }
-.t-detail { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
+.t-detail { color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
 .t-mme { font-weight: 700; color: var(--accent); white-space: nowrap; }
 .t-sum {
   border-top: 1px solid var(--border-strong);
@@ -929,9 +933,8 @@ body.view-settings  .show-in-settings { display: revert; }
 .setting .check-label input { transform: scale(1.15); }
 .privacy { color: var(--muted); font-style: italic; font-size: 13px; }
 
-/* About pane: long-form explanatory copy on warm paper. Display serif
- * for the section heads echoes the header; sans body keeps the copy
- * easy to skim. Line length capped at ~64ch for readability. */
+/* About pane: long-form explanatory copy on warm paper. Line length
+ * capped at ~64ch for readability. */
 .about-card h3 {
   margin: 24px 0 8px;
   font-family: var(--font-display);
@@ -1221,7 +1224,6 @@ body.view-settings  .show-in-settings { display: revert; }
   body { background: #fff; color: #000; }
   header { background: #fff !important; color: #000 !important; padding: 0 0 12px; border-bottom: 1px solid #000; }
   header h1 { color: #000; font-size: 18px; }
-  header .subtitle { color: #444; font-size: 12px; }
   main { padding: 0; max-width: none; }
   .view-tabs, .no-print, .paste-details, .ghost, .primary, .remove-btn, .mme-clickable {
     display: none !important;

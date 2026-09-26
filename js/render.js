@@ -210,7 +210,7 @@ function renderComplexTable(rows) {
       <td class="num">${counted}</td>
       <td class="num">${windowTotal}</td>
       <td class="num">${perDay}</td>
-      <td class="admin-detail" style="max-width:none">${escapeHtml(r.factorDescription)}</td>
+      <td class="calc-detail">${escapeHtml(r.factorDescription)}</td>
       <td class="num mme"><button class="mme-clickable" data-expand="${e.id}" title="Show calculation">${r.mme == null ? '—' : formatNum(r.mme)}</button></td>
       <td><button class="remove-btn" data-remove="${e.id}" title="Remove">×</button></td>
     </tr>`);
